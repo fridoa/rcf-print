@@ -23,6 +23,9 @@ uploads/
 .DS_Store
 Thumbs.db
 
+# dokumen requirement dari client (lokal saja, tidak masuk repo)
+requirement/
+
 # build / cache
 dist/
 build/

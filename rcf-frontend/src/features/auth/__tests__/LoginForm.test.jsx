@@ -102,3 +102,84 @@ describe("LoginForm", () => {
     );
   });
 });
+
+/**
+ * Field login dibungkus <Controller>, jadi nilainya hidup di state form
+ * dan bukan lagi di DOM. Yang di bawah ini menguji akibat langsung dari
+ * perubahan itu — hal yang tidak terlihat lewat test di atas.
+ */
+describe("LoginForm — field controlled", () => {
+  it("memulai dengan string kosong, bukan undefined", () => {
+    renderPlain(<LoginForm onSubmit={vi.fn()} />);
+
+    expect(screen.getByLabelText(/username atau email/i)).toHaveValue("");
+    expect(screen.getByLabelText(/^password$/i)).toHaveValue("");
+  });
+
+  it("tidak memunculkan peringatan controlled/uncontrolled dari React", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    renderPlain(<LoginForm onSubmit={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText(/username atau email/i), "admin");
+
+    const pesan = spy.mock.calls.flat().join(" ");
+    expect(pesan).not.toMatch(/uncontrolled input to be controlled/i);
+
+    spy.mockRestore();
+  });
+
+  it("menampilkan apa yang diketik (onChange tersambung ke state)", async () => {
+    renderPlain(<LoginForm onSubmit={vi.fn()} />);
+
+    const input = screen.getByLabelText(/username atau email/i);
+    await userEvent.type(input, "admin");
+
+    expect(input).toHaveValue("admin");
+  });
+
+  it("menghapus error setelah field diperbaiki", async () => {
+    renderPlain(<LoginForm onSubmit={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /masuk/i }));
+    await screen.findByText("Username atau email wajib diisi");
+
+    await userEvent.type(screen.getByLabelText(/username atau email/i), "admin");
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Username atau email wajib diisi")
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it("tidak mengosongkan isian saat pesan error server muncul", async () => {
+    const { rerender } = renderPlain(<LoginForm onSubmit={vi.fn()} />);
+
+    await userEvent.type(screen.getByLabelText(/username atau email/i), "admin");
+    await userEvent.type(screen.getByLabelText(/^password$/i), "salah");
+
+    // Setelah 401, LoginPage merender ulang form dengan errorMessage terisi.
+    // Form tidak di-unmount, jadi isian harus tetap ada — user cukup
+    // memperbaiki passwordnya, tidak mengetik ulang username.
+    rerender(
+      <LoginForm
+        onSubmit={vi.fn()}
+        errorMessage="Username/email atau password salah"
+      />
+    );
+
+    expect(screen.getByLabelText(/username atau email/i)).toHaveValue("admin");
+    expect(screen.getByLabelText(/^password$/i)).toHaveValue("salah");
+  });
+
+  it("input password tetap bertipe password", () => {
+    renderPlain(<LoginForm onSubmit={vi.fn()} />);
+
+    // Regresi yang mudah terjadi saat menyalin prop ke Controller:
+    // `type` ikut hilang dan password tampil sebagai teks biasa.
+    expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
+      "type",
+      "password"
+    );
+  });
+});

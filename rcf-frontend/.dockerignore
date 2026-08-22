@@ -1,0 +1,26 @@
+node_modules
+dist
+npm-debug.log*
+
+# rahasia
+.env
+.env.*
+!.env.example
+
+# artefak
+coverage
+*.log
+
+# git & editor
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+# nginx.conf TIDAK dikecualikan — Dockerfile target production meng-COPY-nya.

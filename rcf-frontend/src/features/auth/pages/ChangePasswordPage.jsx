@@ -8,9 +8,10 @@ import { useChangePassword } from "../hooks/useChangePassword";
  * Halaman ubah password sendiri.
  *
  * Setelah sukses, form dipasang ulang lewat perubahan `key` supaya ketiga
- * input password benar-benar kosong lagi — password yang masih tertinggal
- * di DOM setelah submit sukses tidak ada gunanya dan memperbesar risiko
- * kalau layar ditinggal terbuka.
+ * input password benar-benar kosong lagi. Sejak field dibungkus
+ * <Controller>, nilainya ada di state form (bukan hanya di DOM), dan
+ * remount adalah cara paling pasti membuangnya — `reset()` dari dalam
+ * komponen menyisakan riwayat state form yang tidak perlu.
  */
 export function ChangePasswordPage() {
   const [formKey, setFormKey] = useState(0);

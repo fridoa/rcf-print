@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Alert, Button, TextField } from "@/shared/components/ui";
 import { changePasswordSchema } from "../schemas/auth.schema";
@@ -13,6 +13,13 @@ import { changePasswordSchema } from "../schemas/auth.schema";
  *
  * autoComplete diisi current-password / new-password supaya password
  * manager browser tidak salah menawarkan isian.
+ *
+ * Field dibungkus <Controller> (controlled). Untuk form ini ada satu
+ * catatan khusus: nilai password sekarang hidup di state React, bukan
+ * hanya di DOM. Praktis tidak mengubah tingkat keamanan (state React ada
+ * di memori halaman yang sama, dan value input selalu bisa dibaca script
+ * di origin ini), tapi berarti nilainya ikut muncul di React DevTools
+ * saat form terbuka.
  */
 export function ChangePasswordForm({
   onSubmit,
@@ -21,11 +28,7 @@ export function ChangePasswordForm({
   errorDetails = [],
   successMessage,
 }) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
+  const { control, handleSubmit } = useForm({
     resolver: yupResolver(changePasswordSchema),
     defaultValues: {
       oldPassword: "",
@@ -48,29 +51,47 @@ export function ChangePasswordForm({
         <Alert tone="success" title={successMessage} />
       )}
 
-      <TextField
-        label="Password Lama"
-        type="password"
-        autoComplete="current-password"
-        error={errors.oldPassword?.message}
-        {...register("oldPassword")}
+      <Controller
+        name="oldPassword"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            label="Password Lama"
+            type="password"
+            autoComplete="current-password"
+            error={fieldState.error?.message}
+          />
+        )}
       />
 
-      <TextField
-        label="Password Baru"
-        type="password"
-        autoComplete="new-password"
-        hint="Minimal 6 karakter."
-        error={errors.newPassword?.message}
-        {...register("newPassword")}
+      <Controller
+        name="newPassword"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            label="Password Baru"
+            type="password"
+            autoComplete="new-password"
+            hint="Minimal 6 karakter."
+            error={fieldState.error?.message}
+          />
+        )}
       />
 
-      <TextField
-        label="Konfirmasi Password Baru"
-        type="password"
-        autoComplete="new-password"
-        error={errors.confirmPassword?.message}
-        {...register("confirmPassword")}
+      <Controller
+        name="confirmPassword"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            label="Konfirmasi Password Baru"
+            type="password"
+            autoComplete="new-password"
+            error={fieldState.error?.message}
+          />
+        )}
       />
 
       <Button type="submit" isLoading={isSubmitting}>

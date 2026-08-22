@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Alert, Button, TextField } from "@/shared/components/ui";
 import { loginSchema } from "../schemas/auth.schema";
@@ -6,6 +6,17 @@ import { loginSchema } from "../schemas/auth.schema";
 /**
  * Form login murni presentational: tidak tahu soal router maupun context.
  * Semua efek samping (redirect, simpan token) urusan pemanggilnya.
+ *
+ * Field dibungkus <Controller> (controlled) mengikuti pola yang sama
+ * dengan CustomerForm. Konsekuensi yang perlu diketahui:
+ *
+ * - `value` tidak boleh undefined, kalau tidak React memperingatkan
+ *   "changing an uncontrolled input to be controlled". Karena itu
+ *   defaultValues mengisi kedua field dengan string kosong.
+ * - Error dibaca dari `fieldState`, bukan `errors` di formState. Isinya
+ *   sama, tapi fieldState datang dari langganan per-field yang juga
+ *   memicu render field itu — tidak ada celah pesan error tertinggal
+ *   satu render.
  *
  * Props:
  *   onSubmit(values)  -> dipanggil dengan { identifier, password }
@@ -19,11 +30,7 @@ export function LoginForm({
   errorMessage,
   errorDetails = [],
 }) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
+  const { control, handleSubmit } = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: { identifier: "", password: "" },
   });
@@ -38,22 +45,39 @@ export function LoginForm({
         <Alert tone="error" title={errorMessage} messages={errorDetails} />
       )}
 
-      <TextField
-        label="Username atau Email"
-        autoComplete="username"
-        autoFocus
-        placeholder="admin"
-        error={errors.identifier?.message}
-        {...register("identifier")}
+      {/*
+        `field` berisi { name, value, onChange, onBlur, ref } dan disebar ke
+        TextField. TextField sudah forwardRef, jadi ref-nya sampai ke <input>
+        dan react-hook-form tetap bisa memfokuskan field pertama yang error.
+      */}
+      <Controller
+        name="identifier"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            label="Username atau Email"
+            autoComplete="username"
+            autoFocus
+            placeholder="admin"
+            error={fieldState.error?.message}
+          />
+        )}
       />
 
-      <TextField
-        label="Password"
-        type="password"
-        autoComplete="current-password"
-        placeholder="••••••••"
-        error={errors.password?.message}
-        {...register("password")}
+      <Controller
+        name="password"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            error={fieldState.error?.message}
+          />
+        )}
       />
 
       <Button type="submit" size="lg" isLoading={isSubmitting}>

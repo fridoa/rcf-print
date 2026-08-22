@@ -1,15 +1,21 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { Button } from "@/shared/components/ui";
 import { ROLE_LABEL } from "@/shared/constants/roles";
 import { ROUTES } from "@/shared/constants/routes";
+import { cn } from "@/shared/lib/cn";
 import { useAuth } from "@/features/auth";
 
 /**
- * Kerangka halaman setelah login: header + area konten.
+ * Kerangka halaman setelah login: header + navigasi + area konten.
  *
- * Sengaja masih minimal — navigasi per modul ditambahkan saat
- * halaman modulnya ada, supaya tidak ada link yang menuju 404.
+ * Navigasi hanya memuat modul yang halamannya sudah ada, supaya tidak ada
+ * link yang menuju 404. Pesanan & rekap ditambahkan saat modulnya jadi.
  */
+const NAV = [
+  { to: ROUTES.dashboard, label: "Dashboard" },
+  { to: ROUTES.customers, label: "Pelanggan" },
+];
+
 export function AppLayout() {
   const { user, logout } = useAuth();
 
@@ -39,6 +45,29 @@ export function AppLayout() {
             </Button>
           </div>
         </div>
+
+        <nav aria-label="Navigasi utama" className="mx-auto max-w-5xl px-4">
+          <ul className="flex gap-1">
+            {NAV.map((item) => (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  end
+                  className={({ isActive }) =>
+                    cn(
+                      "inline-block border-b-2 px-3 py-2 text-sm font-medium",
+                      isActive
+                        ? "border-brand-600 text-brand-700"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                    )
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6">

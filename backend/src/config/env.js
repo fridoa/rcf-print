@@ -89,6 +89,16 @@ export const env = {
 
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
 
+  /**
+   * Origin tambahan yang boleh memanggil API, dipisah koma.
+   * FRONTEND_URL sudah otomatis diizinkan — ini untuk sisanya
+   * (domain www, preview deploy, staging).
+   */
+  CORS_ORIGINS: (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+
   OTP_EXPIRES_MINUTES: Number(process.env.OTP_EXPIRES_MINUTES) || 10,
   RESET_TOKEN_EXPIRES_MINUTES: Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 60,
 };

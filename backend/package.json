@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "seed:admin": "node scripts/seed-admin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

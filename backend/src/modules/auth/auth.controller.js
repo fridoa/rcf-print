@@ -1,5 +1,9 @@
 import authService from "./auth.service.js";
-import { loginSchema } from "./auth.validator.js";
+import {
+  loginSchema,
+  editProfileSchema,
+  changePasswordSchema,
+} from "./auth.validator.js";
 
 const login = async (req, res, next) => {
   try {
@@ -33,4 +37,41 @@ const me = async (req, res, next) => {
   }
 };
 
-export default { login, me };
+const editProfile = async (req, res, next) => {
+  try {
+    const payload = await editProfileSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    const user = await authService.editProfile(req.user.id, payload);
+
+    res.json({
+      success: true,
+      message: "Profil berhasil diperbarui",
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const payload = await changePasswordSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    await authService.changePassword(req.user.id, payload);
+
+    res.json({
+      success: true,
+      message: "Password berhasil diubah",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export default { login, me, editProfile, changePassword };

@@ -4,7 +4,7 @@ import { hashPassword, verifyPassword } from "../../utils/password.js";
 
 const userSchema = new Schema(
   {
-    nama: {
+    name: {
       type: String,
       required: [true, "Nama wajib diisi"],
       trim: true,

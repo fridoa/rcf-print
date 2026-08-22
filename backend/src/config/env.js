@@ -10,7 +10,7 @@ const required = (key) => {
   return value;
 };
 
-const APP_ENVS = ["development", "test", "staging", "production"];
+const APP_ENVS = ["development", "autotest", "test", "staging", "production"];
 
 const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || "development";
 
@@ -25,10 +25,14 @@ const DATABASE_URL = required("DATABASE_URL");
  *
  * Tujuannya mencegah kecelakaan paling mahal — deploy staging/production
  * yang ternyata masih menunjuk database development, atau test suite
- * (yang menghapus data) berjalan di atas database production.
+ * (yang menghapus seluruh collection) berjalan di atas database dev/QA.
+ *
+ * autotest = database khusus `npm test`, isinya dihapus tiap test.
+ * test     = database QA, diisi manual, JANGAN dipakai test otomatis.
  */
 const DB_NAME_SUFFIX = {
   development: "_dev",
+  autotest: "_autotest",
   test: "_test",
   staging: "_staging",
   production: "", // tanpa suffix, mis. rcf_print
@@ -53,7 +57,7 @@ if (!dbName) {
 const expectedSuffix = DB_NAME_SUFFIX[APP_ENV];
 
 if (APP_ENV === "production") {
-  const salah = ["_dev", "_test", "_staging"].find((s) => dbName.endsWith(s));
+  const salah = ["_dev", "_autotest", "_test", "_staging"].find((s) => dbName.endsWith(s));
   if (salah) {
     throw new Error(
       `APP_ENV=production tapi database bernama "${dbName}" (berakhiran ${salah}). ` +
@@ -91,5 +95,6 @@ export const env = {
 
 export const isProduction = APP_ENV === "production";
 export const isStaging = APP_ENV === "staging";
+export const isAutotest = APP_ENV === "autotest";
 export const isTest = APP_ENV === "test";
 export const isDevelopment = APP_ENV === "development";

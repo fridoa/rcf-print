@@ -1,0 +1,102 @@
+# Compose untuk pengembangan lokal.
+#
+# Jalankan:  docker compose up
+# FE  → http://localhost:5173
+# BE  → http://localhost:3000/health
+#
+# Field `version:` sengaja tidak ditulis — sudah usang di Compose v2 dan
+# hanya memunculkan warning.
+
+name: rcf-print
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: development
+    # env_file dipakai supaya kredensial (DATABASE_URL, JWT_SECRET_KEY,
+    # SMTP) tidak pernah ditulis di file ini — file ini masuk git, .env tidak.
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: development
+      NODE_ENV: development
+      PORT: 3000
+      # FE diakses browser di localhost:5173, jadi link reset password
+      # harus menunjuk ke sana, bukan ke nama service internal.
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind mount source supaya nodemon melihat perubahan tanpa rebuild.
+      - ./backend:/app
+      # Volume anonim menutupi node_modules dari host. Tanpa baris ini,
+      # node_modules Windows-mu menimpa hasil `npm ci` versi Linux di image,
+      # dan modul apa pun dengan binari akan gagal load.
+      - /app/node_modules
+    healthcheck:
+      # Endpoint /health sudah ada di app.js. Node dipakai untuk cek supaya
+      # tidak perlu menambah curl/wget ke image alpine.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Koneksi Atlas pertama bisa lambat; jangan tandai unhealthy terlalu dini.
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./rcf-frontend
+      target: development
+    environment:
+      # Kosongkan VITE_API_URL supaya client jatuh ke "/api/v1" dan
+      # lewat proxy dev — satu origin, tidak perlu CORS.
+      VITE_PROXY_TARGET: http://backend:3000
+      # inotify tidak diteruskan lewat bind mount di Docker Desktop,
+      # jadi HMR butuh polling. Matikan (false) kalau CPU-nya terasa.
+      VITE_USE_POLLING: "true"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./rcf-frontend:/app
+      - /app/node_modules
+    depends_on:
+      # Hanya menunggu container backend hidup, bukan sehat. FE tetap bisa
+      # dibuka meski BE belum siap — request API-nya yang gagal, bukan build-nya.
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # MongoDB lokal — TIDAK jalan secara default.
+  # Nyalakan dengan:  docker compose --profile local-db up
+  # Lalu di backend/.env ganti DATABASE_URL menjadi:
+  #   mongodb://root:secret@mongo:27017/rcf_print_dev?authSource=admin
+  # Perhatikan: skema "mongodb://", bukan "mongodb+srv://" (srv hanya untuk Atlas),
+  # dan nama database wajib berakhiran _dev — env.js menolak kalau tidak cocok.
+  mongo:
+    image: mongo:8
+    profiles: ["local-db"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: secret
+    ports:
+      # Dipublish supaya bisa dilihat dari Compass di host.
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

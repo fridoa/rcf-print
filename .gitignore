@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# contoh untuk tiap environment tetap boleh masuk repo
+!.env.*.example
 
 # logs
 *.log

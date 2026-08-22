@@ -1,0 +1,36 @@
+# Menjalankan test suite di dalam container.
+#
+#   docker compose -f docker-compose.test.yml run --rm backend-test
+#   docker compose -f docker-compose.test.yml run --rm frontend-test
+#
+# Dipisah dari docker-compose.yml supaya `docker compose up` tidak pernah
+# menyalakan service test secara tidak sengaja — test backend menghapus
+# seluruh collection di databasenya.
+
+name: rcf-print-test
+
+services:
+  backend-test:
+    build:
+      context: ./backend
+      target: autotest
+    # test/setup.js memanggil dotenv.config({ path: ".env.autotest" }).
+    # File itu tidak masuk image (dilarang .dockerignore, memang benar
+    # begitu — isinya kredensial), jadi dotenv tidak menemukan apa pun dan
+    # diam saja. Yang mengisi APP_ENV=autotest adalah env_file di bawah;
+    # kalau file ini tidak ada, setup.js langsung melempar error dengan
+    # pesan yang jelas, bukan menghapus database yang salah.
+    env_file:
+      - ./backend/.env.autotest
+    environment:
+      APP_ENV: autotest
+      NODE_ENV: test
+
+  frontend-test:
+    build:
+      context: ./rcf-frontend
+      target: test
+    environment:
+      # Test FE memakai jsdom dan mock semua modul api — tidak ada
+      # request keluar, jadi tidak butuh backend maupun database.
+      CI: "true"

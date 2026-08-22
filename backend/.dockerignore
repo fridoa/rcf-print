@@ -1,0 +1,32 @@
+# Semua yang tidak perlu masuk build context.
+# Penting bukan cuma soal ukuran: kalau node_modules ikut ter-COPY,
+# binari hasil install di host (Windows) menimpa hasil `npm ci` di Linux.
+node_modules
+npm-debug.log*
+
+# rahasia — jangan pernah ikut ke dalam image
+.env
+.env.*
+!.env.example
+
+# artefak lokal
+coverage
+.nyc_output
+*.log
+logs
+
+# git & editor
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# docker itself
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# vercel
+.vercel

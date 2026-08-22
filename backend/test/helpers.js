@@ -1,4 +1,5 @@
 import UserModel from "../src/modules/auth/user.model.js";
+import CustomerModel from "../src/modules/customers/customer.model.js";
 import { ROLES } from "../src/modules/auth/auth.constant.js";
 
 /**
@@ -27,4 +28,29 @@ export const loginDapatToken = async (request, app, identifier, password) => {
     .send({ identifier, password });
 
   return res.body?.data?.token;
+};
+
+/**
+ * Bikin user + langsung ambil tokennya.
+ * Dipakai test modul lain yang hanya butuh "token milik role X".
+ */
+export const buatUserDanToken = async (request, app, override = {}) => {
+  const { user, passwordMentah } = await buatUser(override);
+  const token = await loginDapatToken(
+    request,
+    app,
+    user.username,
+    passwordMentah
+  );
+
+  return { user, token, passwordMentah };
+};
+
+/** Bikin pelanggan untuk keperluan test. */
+export const buatCustomer = async (override = {}) => {
+  return CustomerModel.create({
+    name: "Budi Santoso",
+    whatsapp: "081234567890",
+    ...override,
+  });
 };

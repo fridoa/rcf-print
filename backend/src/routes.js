@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authRoute from "./modules/auth/auth.route.js";
+import customerRoute from "./modules/customers/customer.route.js";
 
 const router = Router();
 
@@ -12,9 +13,9 @@ router.get("/", (req, res) => {
 });
 
 router.use("/auth", authRoute);
+router.use("/customers", customerRoute);
 
 // Modul berikutnya:
-// router.use("/customers", customerRoute);
 // router.use("/orders", orderRoute);
 // router.use("/rekap", rekapRoute);
 

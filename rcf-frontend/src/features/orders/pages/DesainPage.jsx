@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Button, Modal } from "@/shared/components/ui";
+import { Alert, Button, Modal, TextField } from "@/shared/components/ui";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { OrderTable } from "../components/OrderTable";
 import { SelesaiDesainForm } from "../components/SelesaiDesainForm";
 import { STATUS } from "../constants/order.constants";
@@ -15,8 +16,13 @@ import { useMajukanStatus } from "../hooks/useOrderMutations";
  * mengumpulkan catatan opsional untuk operator produksi.
  */
 export function DesainPage() {
+  // Pencarian kode order / pelanggan (debounced supaya tak menembak API tiap huruf).
+  const [inputCari, setInputCari] = useState("");
+  const search = useDebouncedValue(inputCari);
+
   const { data, isLoading, isFetching, error } = useOrders({
     status: STATUS.ANTRI_DESAIN,
+    search,
     limit: 50,
     sort: "createdAt", // FIFO: order paling lama menunggu dikerjakan dulu
   });
@@ -47,6 +53,16 @@ export function DesainPage() {
         </p>
       </header>
 
+      <div className="mb-4 sm:max-w-xs">
+        <TextField
+          label="Cari order"
+          type="search"
+          placeholder="Kode order (mis. DTF/220826/001)"
+          value={inputCari}
+          onChange={(e) => setInputCari(e.target.value)}
+        />
+      </div>
+
       {error && (
         <div className="mb-4">
           <Alert tone="error" title={error.message} messages={error.errors} />
@@ -58,7 +74,11 @@ export function DesainPage() {
         columns={["kode", "jenis", "pelanggan", "deadline", "tanggal"]}
         isLoading={isLoading}
         isFetching={isFetching}
-        emptyText="Tidak ada order di antrian desain."
+        emptyText={
+          search
+            ? `Tidak ada order yang cocok dengan "${search}".`
+            : "Tidak ada order di antrian desain."
+        }
         renderAction={(order) => (
           <Button
             size="sm"

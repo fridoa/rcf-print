@@ -5,7 +5,9 @@ import {
   ConfirmDialog,
   InfiniteScroll,
   Pagination,
+  TextField,
 } from "@/shared/components/ui";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { OrderTable } from "./OrderTable";
 import { useOrders, useInfiniteOrders } from "../hooks/useOrders";
@@ -44,10 +46,20 @@ export function WorkQueuePage({
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
+  // Pencarian kode order / pelanggan. Debounce supaya tidak memanggil API tiap
+  // huruf; ganti kata kunci → balik ke halaman 1 (hasil filter beda).
+  const [inputCari, setInputCari] = useState("");
+  const search = useDebouncedValue(inputCari);
+
+  const gantiCari = (nilai) => {
+    setInputCari(nilai);
+    setPage(1);
+  };
+
   // Desktop: paginasi tombol. HP: infinite scroll. (Lihat PesananPage.)
   const isDesktop = useIsDesktop();
 
-  const filterApi = { status, jenis, sort: "createdAt" }; // FIFO
+  const filterApi = { status, jenis, search, sort: "createdAt" }; // FIFO
 
   const paged = useOrders(
     { ...filterApi, page, limit },
@@ -114,6 +126,16 @@ export function WorkQueuePage({
         </p>
       </header>
 
+      <div className="mb-4 sm:max-w-xs">
+        <TextField
+          label="Cari order"
+          type="search"
+          placeholder="Kode order (mis. DTF/220826/001)"
+          value={inputCari}
+          onChange={(e) => gantiCari(e.target.value)}
+        />
+      </div>
+
       {error && (
         <div className="mb-4">
           <Alert tone="error" title={error.message} messages={error.errors} />
@@ -131,7 +153,9 @@ export function WorkQueuePage({
         columns={columns}
         isLoading={isLoading}
         isFetching={isFetching}
-        emptyText={emptyText}
+        emptyText={
+          search ? `Tidak ada order yang cocok dengan "${search}".` : emptyText
+        }
         renderAction={(order) => (
           <Button
             size="sm"

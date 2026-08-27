@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pagination, Spinner, TextField } from "@/shared/components/ui";
+import {
+  Alert,
+  InfiniteScroll,
+  Pagination,
+  Spinner,
+  TextField,
+} from "@/shared/components/ui";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { formatRupiah, formatTanggal } from "@/shared/lib/format";
 import { useRekapHarian } from "../hooks/useRekap";
 
@@ -55,7 +62,15 @@ export function RekapPage() {
   const baris = data?.baris ?? [];
   const total = data?.total;
 
+  // Desktop: paginasi tombol client-side (data sudah di memori). HP: infinite
+  // scroll — tampilkan jumlah baris yang bertambah tiap kali user mendekati
+  // bawah. Keduanya memotong array yang sama, hanya beda cara kontrolnya.
+  const isDesktop = useIsDesktop();
+
   const totalPages = Math.max(Math.ceil(baris.length / limit), 1);
+
+  // Berapa baris yang ditampilkan di mode HP (infinite). Bertambah per-batch.
+  const [tampil, setTampil] = useState(limit);
 
   // Kalau rentang/limit berubah dan halaman aktif jadi di luar jangkauan
   // (mis. tadi di halaman 3, sekarang cuma 1 halaman), tarik balik ke 1.
@@ -63,10 +78,21 @@ export function RekapPage() {
     if (page > totalPages) setPage(1);
   }, [page, totalPages]);
 
+  // Reset jumlah tampil HP saat data (rentang) berubah supaya tidak "nyangkut"
+  // menampilkan lebih banyak dari yang ada.
+  useEffect(() => {
+    setTampil(limit);
+  }, [baris, limit]);
+
   const barisHalaman = useMemo(() => {
-    const mulai = (page - 1) * limit;
-    return baris.slice(mulai, mulai + limit);
-  }, [baris, page, limit]);
+    if (isDesktop) {
+      const mulai = (page - 1) * limit;
+      return baris.slice(mulai, mulai + limit);
+    }
+    return baris.slice(0, tampil);
+  }, [baris, page, limit, tampil, isDesktop]);
+
+  const adaLagiHp = tampil < baris.length;
 
   return (
     <section className="flex flex-col gap-4">
@@ -185,19 +211,28 @@ export function RekapPage() {
         </table>
       </div>
 
-      {baris.length > 0 && (
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          total={baris.length}
-          onPageChange={setPage}
-          limit={limit}
-          onLimitChange={(l) => {
-            setLimit(l);
-            setPage(1);
-          }}
-        />
-      )}
+      {/* Desktop: paginasi tombol client-side. HP: infinite scroll. */}
+      {baris.length > 0 &&
+        (isDesktop ? (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={baris.length}
+            onPageChange={setPage}
+            limit={limit}
+            onLimitChange={(l) => {
+              setLimit(l);
+              setPage(1);
+            }}
+          />
+        ) : (
+          <InfiniteScroll
+            hasNextPage={adaLagiHp}
+            isFetchingNextPage={false}
+            onLoadMore={() => setTampil((n) => n + limit)}
+            endText="Semua baris rekap sudah dimuat."
+          />
+        ))}
 
     </section>
   );

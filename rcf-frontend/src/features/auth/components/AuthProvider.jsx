@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { setUnauthorizedHandler } from "@/shared/api/client";
 import { tokenStorage } from "@/shared/lib/token";
+import { notify } from "@/shared/lib/toast";
 import { authApi } from "../api/auth.api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -26,14 +27,22 @@ export function AuthProvider({ children }) {
     tokenStorage.clear();
     setUser(null);
     setStatus("guest");
+    notify.info("Kamu sudah keluar.");
   }, []);
 
   // Dipanggil interceptor axios saat ada respons 401 dari endpoint mana pun,
   // termasuk saat token kedaluwarsa di tengah pemakaian.
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      // Hanya beri tahu kalau tadinya memang sedang login — supaya tidak
+      // muncul toast "sesi berakhir" pada 401 biasa (mis. salah kredensial).
+      setStatus((prev) => {
+        if (prev === "authed") {
+          notify.error("Sesi berakhir. Silakan login lagi.");
+        }
+        return "guest";
+      });
       setUser(null);
-      setStatus("guest");
     });
 
     return () => setUnauthorizedHandler(null);

@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { authApi } from "../api/auth.api";
+import { notify } from "@/shared/lib/toast";
 
 /**
  * Mutation ubah password sendiri (PATCH /auth/change-password).
@@ -15,5 +16,7 @@ import { authApi } from "../api/auth.api";
 export function useChangePassword() {
   return useMutation({
     mutationFn: authApi.changePassword,
+    onSuccess: () => notify.success("Password berhasil diubah."),
+    onError: (err) => notify.apiError(err),
   });
 }

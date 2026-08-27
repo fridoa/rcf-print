@@ -3,6 +3,25 @@ import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 /**
+ * react-toastify di-mock global untuk SEMUA test.
+ *
+ * Alasan: hook mutation kini memanggil toast.success/error lewat notify.
+ * Test tidak merender <ToastContainer>, jadi memanggil toast asli hanya
+ * menambah noise/act-warning tanpa memberi nilai. Mock membuat pemanggilan
+ * jadi no-op yang bisa di-assert bila suatu test memang ingin memverifikasi
+ * notifikasi (import { toast } from "react-toastify" lalu cek mock).
+ */
+vi.mock("react-toastify", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+  ToastContainer: () => null,
+}));
+
+/**
  * Setup global untuk semua test (dipakai lewat vite.config.js -> test.setupFiles).
  *
  * cleanup() dipanggil manual karena Vitest globals dinyalakan tapi

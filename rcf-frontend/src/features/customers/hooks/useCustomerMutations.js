@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerApi } from "../api/customer.api";
 import { customerKeys } from "./useCustomers";
+import { notify } from "@/shared/lib/toast";
 
 /**
  * Tiga mutation modul pelanggan.
@@ -13,13 +14,20 @@ import { customerKeys } from "./useCustomers";
  * Tidak ada optimistic update. Untuk data pelanggan, respons server
  * adalah sumber kebenaran (nomor dinormalisasi di backend), dan menebak
  * hasilnya di klien justru bikin nomor sempat tampil beda.
+ *
+ * Tiap mutation memberi toast sukses/gagal lewat notify supaya umpan balik
+ * seragam dengan modul lain.
  */
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: customerApi.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: customerKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      notify.success("Pelanggan baru ditambahkan.");
+    },
+    onError: (err) => notify.apiError(err),
   });
 }
 
@@ -28,7 +36,11 @@ export function useUpdateCustomer() {
 
   return useMutation({
     mutationFn: customerApi.update,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: customerKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      notify.success("Data pelanggan diperbarui.");
+    },
+    onError: (err) => notify.apiError(err),
   });
 }
 
@@ -37,6 +49,10 @@ export function useDeleteCustomer() {
 
   return useMutation({
     mutationFn: customerApi.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: customerKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      notify.success("Pelanggan dihapus.");
+    },
+    onError: (err) => notify.apiError(err),
   });
 }

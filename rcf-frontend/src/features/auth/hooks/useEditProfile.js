@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { authApi } from "../api/auth.api";
 import { useAuth } from "./useAuth";
+import { notify } from "@/shared/lib/toast";
 
 /**
  * Mutation edit profil sendiri (PATCH /auth/edit-profile).
@@ -17,6 +18,10 @@ export function useEditProfile() {
 
   return useMutation({
     mutationFn: authApi.editProfile,
-    onSuccess: (user) => setUser(user),
+    onSuccess: (user) => {
+      setUser(user);
+      notify.success("Profil berhasil diperbarui.");
+    },
+    onError: (err) => notify.apiError(err),
   });
 }

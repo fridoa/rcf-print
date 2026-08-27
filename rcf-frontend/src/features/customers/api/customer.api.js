@@ -13,7 +13,7 @@ import { apiClient } from "@/shared/api/client";
  */
 export const customerApi = {
   /** GET /customers -> { items, pagination } */
-  async list({ search = "", page = 1, limit = 20, sort = "-createdAt" } = {}) {
+  async list({ search = "", page = 1, limit = 10, sort = "-createdAt" } = {}) {
     const body = await apiClient.get("/customers", {
       params: { search, page, limit, sort },
     });

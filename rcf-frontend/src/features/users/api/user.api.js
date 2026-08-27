@@ -16,7 +16,7 @@ export const userApi = {
     role,
     isActive,
     page = 1,
-    limit = 20,
+    limit = 10,
     sort = "-createdAt",
   } = {}) {
     // role & isActive hanya dikirim kalau ada nilainya, supaya tidak

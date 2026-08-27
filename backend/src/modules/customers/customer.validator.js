@@ -63,7 +63,7 @@ export const updateCustomerSchema = Yup.object({
  * Query daftar pelanggan.
  *
  * limit dibatasi maksimal 100 supaya satu request tidak bisa menarik
- * seluruh collection; default 20 mengikuti ukuran tabel di mockup.
+ * seluruh collection; default 10 per halaman.
  */
 export const listCustomerQuerySchema = Yup.object({
   search: Yup.string().trim().default(""),
@@ -77,7 +77,7 @@ export const listCustomerQuerySchema = Yup.object({
     .integer("limit harus bilangan bulat")
     .min(1, "limit minimal 1")
     .max(100, "limit maksimal 100")
-    .default(20),
+    .default(10),
   sort: Yup.string()
     .oneOf(
       ["name", "-name", "createdAt", "-createdAt"],

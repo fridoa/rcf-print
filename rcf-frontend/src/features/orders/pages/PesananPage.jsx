@@ -58,7 +58,7 @@ export function PesananPage() {
   const jenis = searchParams.get("jenis") ?? "";
   const status = searchParams.get("status") ?? "";
   const page = Number(searchParams.get("page") ?? 1);
-  const limit = Number(searchParams.get("limit") ?? 20);
+  const limit = Number(searchParams.get("limit") ?? 10);
 
   const [inputSearch, setInputSearch] = useState(search);
   const searchDitunda = useDebouncedValue(inputSearch);
@@ -79,7 +79,7 @@ export function PesananPage() {
     if (next.jenis) params.jenis = next.jenis;
     if (next.status) params.status = next.status;
     if (Number(next.page) > 1) params.page = next.page;
-    if (Number(next.limit) !== 20) params.limit = next.limit;
+    if (Number(next.limit) !== 10) params.limit = next.limit;
 
     setSearchParams(params, { replace: true });
   };

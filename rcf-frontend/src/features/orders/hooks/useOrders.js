@@ -35,7 +35,7 @@ export function useOrders(params, options = {}) {
  * berikutnya sambil menambah, bukan mengganti. Lihat catatan getNextPageParam
  * di useInfiniteCustomers.
  */
-export function useInfiniteOrders({ limit = 20, ...filter } = {}, options = {}) {
+export function useInfiniteOrders({ limit = 10, ...filter } = {}, options = {}) {
   return useInfiniteQuery({
     queryKey: orderKeys.infinite({ ...filter, limit }),
     queryFn: ({ pageParam = 1 }) =>

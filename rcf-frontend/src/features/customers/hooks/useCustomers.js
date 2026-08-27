@@ -32,7 +32,7 @@ export function useCustomers(params, options = {}) {
  * getNextPageParam: kembalikan nomor halaman berikutnya selama belum halaman
  * terakhir; undefined menandakan tidak ada lagi (hasNextPage jadi false).
  */
-export function useInfiniteCustomers({ search = "", limit = 20 } = {}, options = {}) {
+export function useInfiniteCustomers({ search = "", limit = 10 } = {}, options = {}) {
   return useInfiniteQuery({
     queryKey: customerKeys.infinite({ search, limit }),
     queryFn: ({ pageParam = 1 }) =>

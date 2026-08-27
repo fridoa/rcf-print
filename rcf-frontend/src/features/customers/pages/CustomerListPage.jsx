@@ -39,7 +39,7 @@ export function CustomerListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("search") ?? "";
   const page = Number(searchParams.get("page") ?? 1);
-  const limit = Number(searchParams.get("limit") ?? 20);
+  const limit = Number(searchParams.get("limit") ?? 10);
 
   const [inputSearch, setInputSearch] = useState(search);
   const searchDitunda = useDebouncedValue(inputSearch);
@@ -54,7 +54,7 @@ export function CustomerListPage() {
     const params = {};
     if (next.search) params.search = next.search;
     if (Number(next.page) > 1) params.page = next.page;
-    if (Number(next.limit) !== 20) params.limit = next.limit;
+    if (Number(next.limit) !== 10) params.limit = next.limit;
 
     setSearchParams(params, { replace: true });
   };

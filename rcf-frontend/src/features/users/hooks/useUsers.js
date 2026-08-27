@@ -26,7 +26,7 @@ export function useUsers(params, options = {}) {
 }
 
 /** Versi infinite scroll (dipakai di HP). Lihat catatan di useInfiniteCustomers. */
-export function useInfiniteUsers({ limit = 20, ...filter } = {}, options = {}) {
+export function useInfiniteUsers({ limit = 10, ...filter } = {}, options = {}) {
   return useInfiniteQuery({
     queryKey: userKeys.infinite({ ...filter, limit }),
     queryFn: ({ pageParam = 1 }) =>

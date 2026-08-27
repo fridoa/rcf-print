@@ -44,7 +44,7 @@ export function WorkQueuePage({
   // Paginasi antrian: state lokal (bukan URL) — antrian bukan halaman yang
   // di-bookmark seperti Pesanan, cukup navigasi sesi.
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(10);
 
   // Pencarian kode order / pelanggan. Debounce supaya tidak memanggil API tiap
   // huruf; ganti kata kunci → balik ke halaman 1 (hasil filter beda).

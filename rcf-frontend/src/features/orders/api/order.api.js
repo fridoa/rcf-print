@@ -25,7 +25,7 @@ export const orderApi = {
     search = "",
     tgl,
     page = 1,
-    limit = 20,
+    limit = 10,
     sort = "-createdAt",
   } = {}) {
     const params = { page, limit, sort };

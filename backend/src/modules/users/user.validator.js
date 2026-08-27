@@ -128,7 +128,7 @@ export const listUserQuerySchema = Yup.object({
     .integer("limit harus bilangan bulat")
     .min(1, "limit minimal 1")
     .max(100, "limit maksimal 100")
-    .default(20),
+    .default(10),
   sort: Yup.string()
     .oneOf(
       ["name", "-name", "createdAt", "-createdAt"],

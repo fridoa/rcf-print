@@ -55,7 +55,7 @@ export function UserListPage() {
   const role = searchParams.get("role") ?? "";
   const status = searchParams.get("status") ?? ""; // "", "true", "false"
   const page = Number(searchParams.get("page") ?? 1);
-  const limit = Number(searchParams.get("limit") ?? 20);
+  const limit = Number(searchParams.get("limit") ?? 10);
 
   const [inputSearch, setInputSearch] = useState(search);
   const searchDitunda = useDebouncedValue(inputSearch);
@@ -81,7 +81,7 @@ export function UserListPage() {
     if (next.role) params.role = next.role;
     if (next.status) params.status = next.status;
     if (Number(next.page) > 1) params.page = next.page;
-    if (Number(next.limit) !== 20) params.limit = next.limit;
+    if (Number(next.limit) !== 10) params.limit = next.limit;
 
     setSearchParams(params, { replace: true });
   };

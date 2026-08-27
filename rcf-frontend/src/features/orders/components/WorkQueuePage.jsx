@@ -1,7 +1,14 @@
-import { useState } from "react";
-import { Alert, Button, ConfirmDialog, Pagination } from "@/shared/components/ui";
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Button,
+  ConfirmDialog,
+  InfiniteScroll,
+  Pagination,
+} from "@/shared/components/ui";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { OrderTable } from "./OrderTable";
-import { useOrders } from "../hooks/useOrders";
+import { useOrders, useInfiniteOrders } from "../hooks/useOrders";
 import { useMajukanStatus } from "../hooks/useOrderMutations";
 
 /**
@@ -37,15 +44,34 @@ export function WorkQueuePage({
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  const { data, isLoading, isFetching, error } = useOrders({
-    status,
-    jenis,
-    page,
-    limit,
-    sort: "createdAt", // antrian: yang paling lama diproses dulu (FIFO)
-  });
+  // Desktop: paginasi tombol. HP: infinite scroll. (Lihat PesananPage.)
+  const isDesktop = useIsDesktop();
 
-  const pagination = data?.pagination;
+  const filterApi = { status, jenis, sort: "createdAt" }; // FIFO
+
+  const paged = useOrders(
+    { ...filterApi, page, limit },
+    { enabled: isDesktop }
+  );
+
+  const infinite = useInfiniteOrders(
+    { ...filterApi, limit },
+    { enabled: !isDesktop }
+  );
+
+  const isLoading = isDesktop ? paged.isLoading : infinite.isLoading;
+  const isFetching = isDesktop ? paged.isFetching : infinite.isFetching;
+  const error = isDesktop ? paged.error : infinite.error;
+  const pagination = paged.data?.pagination;
+
+  const orders = useMemo(() => {
+    if (isDesktop) return paged.data?.items ?? [];
+    return infinite.data?.pages.flatMap((p) => p.items) ?? [];
+  }, [isDesktop, paged.data, infinite.data]);
+
+  const totalAntrian = isDesktop
+    ? pagination?.total
+    : infinite.data?.pages[0]?.pagination?.total;
 
   const gantiLimit = (limitBaru) => {
     setLimit(limitBaru);
@@ -77,15 +103,13 @@ export function WorkQueuePage({
     );
   };
 
-  const orders = data?.items ?? [];
-
   return (
     <section>
       <header className="mb-5">
         <h1 className="text-3xl font-bold text-slate-900">{judul}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {data?.pagination
-            ? `${data.pagination.total} order dalam antrian.`
+          {typeof totalAntrian === "number"
+            ? `${totalAntrian} order dalam antrian.`
             : deskripsi}
         </p>
       </header>
@@ -119,17 +143,28 @@ export function WorkQueuePage({
         )}
       />
 
-      {pagination && (
-        <Pagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          onPageChange={setPage}
-          limit={limit}
-          onLimitChange={gantiLimit}
-          disabled={isFetching}
-        />
-      )}
+      {/* Desktop: paginasi tombol. HP: infinite scroll otomatis. */}
+      {isDesktop
+        ? pagination && (
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              onPageChange={setPage}
+              limit={limit}
+              onLimitChange={gantiLimit}
+              disabled={isFetching}
+            />
+          )
+        : !isLoading &&
+          orders.length > 0 && (
+            <InfiniteScroll
+              hasNextPage={infinite.hasNextPage}
+              isFetchingNextPage={infinite.isFetchingNextPage}
+              onLoadMore={infinite.fetchNextPage}
+              endText="Semua order antrian sudah dimuat."
+            />
+          )}
 
       <ConfirmDialog
         open={Boolean(konfirmasi)}

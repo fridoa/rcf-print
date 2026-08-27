@@ -26,7 +26,7 @@ export function ChangePasswordPage() {
   return (
     <section className="max-w-lg">
       <header className="mb-5">
-        <h1 className="text-lg font-semibold text-slate-900">Ubah Password</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Ubah Password</h1>
         <p className="mt-1 text-sm text-slate-500">
           Password lama wajib diisi walaupun kamu sudah login, sebagai
           verifikasi bahwa ini benar kamu.

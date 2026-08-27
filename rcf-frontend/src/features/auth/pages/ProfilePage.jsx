@@ -20,7 +20,7 @@ export function ProfilePage() {
   return (
     <section className="max-w-lg">
       <header className="mb-5">
-        <h1 className="text-lg font-semibold text-slate-900">Profil Saya</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Profil Saya</h1>
         <p className="mt-1 text-sm text-slate-500">
           Ubah nama, username, atau email. Hanya field yang kamu ubah yang
           dikirim ke server.

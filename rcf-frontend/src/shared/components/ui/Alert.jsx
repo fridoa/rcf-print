@@ -4,6 +4,7 @@ const TONES = {
   error: "bg-danger-50 text-danger-600 ring-danger-500/30",
   success: "bg-success-50 text-success-500 ring-success-500/30",
   info: "bg-brand-50 text-brand-700 ring-brand-500/30",
+  warning: "bg-amber-50 text-amber-700 ring-amber-500/30",
 };
 
 /**

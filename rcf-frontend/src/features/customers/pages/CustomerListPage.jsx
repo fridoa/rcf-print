@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Alert, Button, Modal, TextField } from "@/shared/components/ui";
+import { Alert, Button, Modal, Pagination, TextField } from "@/shared/components/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { ROLES } from "@/shared/constants/roles";
 import { useAuth } from "@/features/auth";
@@ -31,9 +31,25 @@ export function CustomerListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("search") ?? "";
   const page = Number(searchParams.get("page") ?? 1);
+  const limit = Number(searchParams.get("limit") ?? 20);
 
   const [inputSearch, setInputSearch] = useState(search);
   const searchDitunda = useDebouncedValue(inputSearch);
+
+  // Bangun query string dari gabungan state sekarang + perubahan. Dipakai
+  // semua pengubah (search/page/limit) supaya tak ada param yang tak sengaja
+  // hilang saat salah satunya berubah.
+  const setFilter = (patch, { resetPage = true } = {}) => {
+    const next = { search, page: String(page), limit: String(limit), ...patch };
+    if (resetPage && !("page" in patch)) next.page = "1";
+
+    const params = {};
+    if (next.search) params.search = next.search;
+    if (Number(next.page) > 1) params.page = next.page;
+    if (Number(next.limit) !== 20) params.limit = next.limit;
+
+    setSearchParams(params, { replace: true });
+  };
 
   // Sinkronkan hasil debounce ke URL. Wajib di dalam effect, bukan di
   // badan render: setSearchParams saat render adalah efek samping yang
@@ -44,11 +60,9 @@ export function CustomerListPage() {
   // setengah jadi.
   useEffect(() => {
     if (searchDitunda === search) return;
-
-    setSearchParams(searchDitunda ? { search: searchDitunda } : {}, {
-      replace: true,
-    });
-  }, [searchDitunda, search, setSearchParams]);
+    setFilter({ search: searchDitunda });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchDitunda]);
 
   const [dialog, setDialog] = useState({ mode: null, customer: null });
   const tutupDialog = () => setDialog({ mode: null, customer: null });
@@ -56,7 +70,7 @@ export function CustomerListPage() {
   const { data, isLoading, isFetching, error } = useCustomers({
     search,
     page,
-    limit: 20,
+    limit,
   });
 
   const createMutation = useCreateCustomer();
@@ -65,12 +79,11 @@ export function CustomerListPage() {
 
   const pagination = data?.pagination;
 
-  const gantiHalaman = (halamanBaru) => {
-    const params = {};
-    if (search) params.search = search;
-    if (halamanBaru > 1) params.page = String(halamanBaru);
-    setSearchParams(params);
-  };
+  const gantiHalaman = (halamanBaru) =>
+    setFilter({ page: String(halamanBaru) }, { resetPage: false });
+
+  // Ganti limit: reset ke halaman 1 supaya offset tidak melewati total data.
+  const gantiLimit = (limitBaru) => setFilter({ limit: String(limitBaru) });
 
   const simpanBaru = (values) => {
     createMutation.mutate(values, { onSuccess: tutupDialog });
@@ -103,7 +116,7 @@ export function CustomerListPage() {
     <section>
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Pelanggan</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Pelanggan</h1>
           <p className="mt-1 text-sm text-slate-500">
             {pagination
               ? `${pagination.total} pelanggan terdaftar.`
@@ -154,33 +167,16 @@ export function CustomerListPage() {
         }}
       />
 
-      {pagination && pagination.totalPages > 1 && (
-        <nav
-          aria-label="Navigasi halaman"
-          className="mt-4 flex items-center justify-between gap-3"
-        >
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => gantiHalaman(page - 1)}
-          >
-            Sebelumnya
-          </Button>
-
-          <p className="text-sm text-slate-500">
-            Halaman {pagination.page} dari {pagination.totalPages}
-          </p>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page >= pagination.totalPages}
-            onClick={() => gantiHalaman(page + 1)}
-          >
-            Berikutnya
-          </Button>
-        </nav>
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          onPageChange={gantiHalaman}
+          limit={limit}
+          onLimitChange={gantiLimit}
+          disabled={isFetching}
+        />
       )}
 
       <Modal

@@ -12,7 +12,7 @@ import { cn } from "@/shared/lib/cn";
  * Catatan: konten hanya dirender saat open, supaya form di dalamnya
  * benar-benar fresh setiap dialog dibuka (tidak menyisakan isian lama).
  */
-export function Modal({ open, onClose, title, description, children }) {
+export function Modal({ open, onClose, title, description, children, size = "md" }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -22,6 +22,10 @@ export function Modal({ open, onClose, title, description, children }) {
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
   }, [open]);
+
+  // Lebar dialog per kebutuhan: form standar tetap "md" (default, tidak
+  // mengubah pemakaian lama); "lg" untuk konten padat seperti detail + timeline.
+  const lebar = size === "lg" ? "max-w-lg" : "max-w-md";
 
   return (
     <dialog
@@ -33,14 +37,15 @@ export function Modal({ open, onClose, title, description, children }) {
         onClose?.();
       }}
       className={cn(
-        "w-full max-w-md rounded-2xl p-0 backdrop:bg-slate-900/40",
+        "w-full rounded-2xl p-0 backdrop:bg-slate-900/40",
+        lebar,
         "m-auto bg-white shadow-lg"
       )}
     >
       {open && (
         <div className="p-5">
           <header className="mb-4">
-            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+            <h2 className="text-3xl font-bold text-slate-900">{title}</h2>
             {description && (
               <p className="mt-1 text-sm text-slate-500">{description}</p>
             )}

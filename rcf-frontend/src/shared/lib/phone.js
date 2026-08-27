@@ -17,3 +17,26 @@ export const formatWhatsapp = (nomor) => {
 /** Link chat WhatsApp; nomor sudah format 62 dari backend. */
 export const whatsappLink = (nomor) =>
   `https://wa.me/${String(nomor ?? "").replace(/\D/g, "")}`;
+
+/**
+ * Pola nomor sah setelah dinormalisasi — mirror backend/src/utils/phone.js.
+ * Dipakai validasi FE saat admin mengetik nomor pelanggan baru di form order.
+ */
+export const WHATSAPP_PATTERN = /^62\d{8,13}$/;
+
+/**
+ * Normalisasi ke format 62xxxxxxxxxx — mirror backend normalizeWhatsapp.
+ *
+ * Ada di FE hanya untuk validasi & pratinjau (mencocokkan bentuk sebelum
+ * kirim). Sumber kebenaran tetap backend: schema Customer menormalkan ulang
+ * saat menyimpan, jadi FE tidak wajib sempurna, cukup konsisten.
+ */
+export const normalizeWhatsapp = (raw) => {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("620")) return `62${digits.slice(3)}`;
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  if (digits.startsWith("8")) return `62${digits}`;
+  return digits;
+};

@@ -45,7 +45,7 @@ export function Modal({ open, onClose, title, description, children, size = "md"
       {open && (
         <div className="p-5">
           <header className="mb-4">
-            <h2 className="text-3xl font-bold text-slate-900">{title}</h2>
+            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
             {description && (
               <p className="mt-1 text-sm text-slate-500">{description}</p>
             )}

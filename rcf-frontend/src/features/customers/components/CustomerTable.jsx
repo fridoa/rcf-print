@@ -1,4 +1,4 @@
-import { Button, Spinner } from "@/shared/components/ui";
+import { Button, TableSkeleton } from "@/shared/components/ui";
 import { formatWhatsapp, whatsappLink } from "@/shared/lib/phone";
 
 /**
@@ -20,11 +20,7 @@ export function CustomerTable({
   onDelete,
 }) {
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner label="Memuat data pelanggan..." />
-      </div>
-    );
+    return <TableSkeleton rows={5} columns={3} action={canManage} />;
   }
 
   if (customers.length === 0) {

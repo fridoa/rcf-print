@@ -1,4 +1,4 @@
-import { Alert, Spinner } from "@/shared/components/ui";
+import { Alert, CardsSkeleton } from "@/shared/components/ui";
 
 /**
  * Kerangka umum semua dashboard role: judul + sapaan, lalu menangani state
@@ -34,9 +34,7 @@ export function DashboardShell({
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Spinner label="Memuat ringkasan..." />
-        </div>
+        <CardsSkeleton tiles={4} panels={2} />
       ) : (
         !isError && children
       )}

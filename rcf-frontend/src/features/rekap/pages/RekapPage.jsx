@@ -4,6 +4,7 @@ import {
   InfiniteScroll,
   Pagination,
   Spinner,
+  TableSkeleton,
   TextField,
 } from "@/shared/components/ui";
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
@@ -126,7 +127,8 @@ export function RekapPage() {
           }}
           className="w-44"
         />
-        {isLoading && <Spinner label="Memuat rekap..." />}
+        {/* Indikator refetch ringan saat sudah ada data sebelumnya. */}
+        {isLoading && baris.length > 0 && <Spinner label="Memuat rekap..." />}
       </div>
 
       {rentangTerbalik && (
@@ -144,6 +146,10 @@ export function RekapPage() {
         />
       )}
 
+      {/* Muat awal (belum ada data): skeleton meniru bentuk tabel rekap. */}
+      {isLoading && baris.length === 0 ? (
+        <TableSkeleton rows={6} columns={7} action={false} />
+      ) : (
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -210,6 +216,7 @@ export function RekapPage() {
           )}
         </table>
       </div>
+      )}
 
       {/* Desktop: paginasi tombol client-side. HP: infinite scroll. */}
       {baris.length > 0 &&

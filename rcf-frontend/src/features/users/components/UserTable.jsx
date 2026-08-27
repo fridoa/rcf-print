@@ -1,4 +1,4 @@
-import { Button, Spinner } from "@/shared/components/ui";
+import { Button, TableSkeleton } from "@/shared/components/ui";
 import { ROLE_LABEL } from "@/shared/constants/roles";
 
 /**
@@ -22,11 +22,7 @@ export function UserTable({
   onDelete,
 }) {
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner label="Memuat data user..." />
-      </div>
-    );
+    return <TableSkeleton rows={5} columns={5} action />;
   }
 
   if (users.length === 0) {

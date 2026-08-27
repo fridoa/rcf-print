@@ -1,4 +1,4 @@
-import { Button, Spinner } from "@/shared/components/ui";
+import { Button, TableSkeleton } from "@/shared/components/ui";
 import { formatWhatsapp, whatsappLink } from "@/shared/lib/phone";
 import { formatRupiah, formatTanggal } from "@/shared/lib/format";
 import { JENIS_LABEL } from "../constants/order.constants";
@@ -38,9 +38,11 @@ export function OrderTable({
 }) {
   if (isLoading) {
     return (
-      <div className="flex justify-center py-10">
-        <Spinner label="Memuat data order..." />
-      </div>
+      <TableSkeleton
+        rows={5}
+        columns={columns.length}
+        action={typeof renderAction === "function"}
+      />
     );
   }
 

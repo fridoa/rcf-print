@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Pagination, Spinner, TextField } from "@/shared/components/ui";
+import { Pagination, Skeleton, TextField } from "@/shared/components/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { cn } from "@/shared/lib/cn";
 import { useDesigns } from "../hooks/useDesigns";
@@ -134,9 +134,13 @@ export function DesignPicker({ customerId, value = [], onChange, error }) {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-4">
-          <Spinner label="Memuat galeri desain..." />
-        </div>
+        <ul className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <li key={i}>
+              <Skeleton className="aspect-square w-full rounded-lg" />
+            </li>
+          ))}
+        </ul>
       ) : items.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-500">
           {search

@@ -53,60 +53,122 @@ export function OrderTable({
   const adaAksi = typeof renderAction === "function";
 
   return (
-    <div className="overflow-x-auto rounded-lg bg-white ring-1 ring-slate-200">
-      <table className="w-full text-left text-sm">
-        <caption className="sr-only">Daftar order RCF Print</caption>
+    <>
+      {/*
+        Layar besar (md+): tabel penuh. Layar kecil: tabel disembunyikan dan
+        diganti daftar kartu di bawah — tabel dengan banyak kolom tidak nyaman
+        di HP walau bisa di-scroll samping.
+      */}
+      <div className="hidden overflow-x-auto rounded-lg bg-white ring-1 ring-slate-200 md:block">
+        <table className="w-full text-left text-sm">
+          <caption className="sr-only">Daftar order RCF Print</caption>
 
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-          <tr>
-            {columns.map((key) => (
-              <th
-                key={key}
-                scope="col"
-                className={`px-4 py-3 font-medium ${
-                  SEMUA_KOLOM[key]?.align === "right" ? "text-right" : ""
-                }`}
-              >
-                {SEMUA_KOLOM[key]?.header ?? key}
-              </th>
-            ))}
-            {adaAksi && (
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                Aksi
-              </th>
-            )}
-          </tr>
-        </thead>
-
-        <tbody
-          className="divide-y divide-slate-100"
-          aria-busy={isFetching || undefined}
-        >
-          {orders.map((order) => (
-            <tr key={order._id} className="hover:bg-slate-50">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
               {columns.map((key) => (
-                <td
+                <th
                   key={key}
-                  className={`px-4 py-3 ${
+                  scope="col"
+                  className={`px-4 py-3 font-medium ${
                     SEMUA_KOLOM[key]?.align === "right" ? "text-right" : ""
                   }`}
                 >
-                  <OrderCell order={order} kolom={key} />
-                </td>
+                  {SEMUA_KOLOM[key]?.header ?? key}
+                </th>
               ))}
-
               {adaAksi && (
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    {renderAction(order)}
-                  </div>
-                </td>
+                <th scope="col" className="px-4 py-3 text-right font-medium">
+                  Aksi
+                </th>
               )}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+
+          <tbody
+            className="divide-y divide-slate-100"
+            aria-busy={isFetching || undefined}
+          >
+            {orders.map((order) => (
+              <tr key={order._id} className="hover:bg-slate-50">
+                {columns.map((key) => (
+                  <td
+                    key={key}
+                    className={`px-4 py-3 ${
+                      SEMUA_KOLOM[key]?.align === "right" ? "text-right" : ""
+                    }`}
+                  >
+                    <OrderCell order={order} kolom={key} />
+                  </td>
+                ))}
+
+                {adaAksi && (
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      {renderAction(order)}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Layar kecil (< md): daftar kartu. Tiap kartu = satu order. */}
+      <ul
+        className="space-y-3 md:hidden"
+        aria-busy={isFetching || undefined}
+      >
+        {orders.map((order) => (
+          <li
+            key={order._id}
+            className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <OrderCell order={order} kolom="kode" />
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {JENIS_LABEL[order.jenis] ?? order.jenis}
+                </p>
+              </div>
+              <StatusBadge status={order.status} />
+            </div>
+
+            {columns.includes("pelanggan") && (
+              <div className="mt-3 text-sm">
+                <OrderCell order={order} kolom="pelanggan" />
+              </div>
+            )}
+
+            {/* Ringkasan field angka/tanggal sebagai pasangan label-nilai. */}
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              {columns
+                .filter((key) =>
+                  ["qty", "file", "harga", "metode", "deadline", "tanggal"].includes(
+                    key
+                  )
+                )
+                .map((key) => (
+                  <div key={key} className="flex flex-col">
+                    <dt className="text-xs uppercase text-slate-400">
+                      {SEMUA_KOLOM[key]?.header ?? key}
+                    </dt>
+                    <dd className="text-slate-700">
+                      <OrderCell order={order} kolom={key} />
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+
+            {adaAksi && (
+              <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+                {renderAction(order)}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

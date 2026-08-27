@@ -93,6 +93,48 @@ const create = async ({ name, whatsapp, note }) => {
   return CustomerModel.create({ name, whatsapp: nomor, note });
 };
 
+/**
+ * Cari pelanggan berdasarkan nomor; buat baru kalau belum ada.
+ *
+ * Dipakai saat membuat order lewat satu langkah: admin (atau nanti webhook
+ * WA) memberi nomor + nama, tanpa perlu tahu apakah pelanggannya sudah
+ * terdaftar. Nomor adalah kunci — normalisasi memastikan "0812", "62812",
+ * "+62 812" dianggap satu pelanggan, jadi tidak ada data dobel.
+ *
+ * Kalau nomor SUDAH ada, data lama dipakai apa adanya — nama yang dikirim
+ * TIDAK menimpa nama tersimpan. Alasannya: order tidak boleh diam-diam
+ * mengubah profil pelanggan (mis. salah ketik nama saat buru-buru bikin
+ * order akan merusak data pelanggan lama). Ubah nama lewat menu Pelanggan.
+ *
+ * @returns {{ customer: Document, dibuatBaru: boolean }}
+ */
+const findOrCreateByWhatsapp = async ({ whatsapp, name, note }) => {
+  const nomor = normalizeWhatsapp(whatsapp);
+
+  const sudahAda = await CustomerModel.findOne({ whatsapp: nomor });
+  if (sudahAda) {
+    return { customer: sudahAda, dibuatBaru: false };
+  }
+
+  // Pelanggan baru: nama wajib. Validator order yang seharusnya sudah
+  // menegakkan ini, tapi dijaga lagi di sini karena fungsi ini juga jadi
+  // pintu masuk untuk webhook WA nanti yang validasinya berbeda.
+  if (!name || !String(name).trim()) {
+    throw createHttpError(
+      400,
+      "Nama pelanggan wajib diisi untuk nomor yang belum terdaftar"
+    );
+  }
+
+  const customer = await CustomerModel.create({
+    name: String(name).trim(),
+    whatsapp: nomor,
+    note: note ?? "",
+  });
+
+  return { customer, dibuatBaru: true };
+};
+
 /** Partial update; hanya field yang dikirim yang di-assign. */
 const update = async (id, { name, whatsapp, note }) => {
   const customer = await getById(id);
@@ -150,4 +192,4 @@ const remove = async (id) => {
   return customer;
 };
 
-export default { list, getById, create, update, remove };
+export default { list, getById, create, findOrCreateByWhatsapp, update, remove };

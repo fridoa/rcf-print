@@ -23,13 +23,8 @@ export function CustomerTable({
     return <TableSkeleton rows={5} columns={3} action={canManage} />;
   }
 
-  if (customers.length === 0) {
-    return (
-      <p className="py-10 text-center text-sm text-slate-500">
-        Belum ada pelanggan yang cocok.
-      </p>
-    );
-  }
+  const kosong = customers.length === 0;
+  const jumlahKolom = 3 + (canManage ? 1 : 0);
 
   return (
     <>
@@ -61,57 +56,74 @@ export function CustomerTable({
             className="divide-y divide-slate-100"
             aria-busy={isFetching || undefined}
           >
-            {customers.map((customer) => (
-              <tr key={customer._id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium text-slate-800">
-                  {customer.name}
+            {/* Kosong: header kolom tetap tampil, isi diganti satu baris pesan. */}
+            {kosong ? (
+              <tr>
+                <td
+                  colSpan={jumlahKolom}
+                  className="px-4 py-10 text-center text-sm text-slate-500"
+                >
+                  Belum ada pelanggan yang cocok.
                 </td>
-
-                <td className="px-4 py-3">
-                  <a
-                    href={whatsappLink(customer.whatsapp)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand-600 hover:underline"
-                  >
-                    {formatWhatsapp(customer.whatsapp)}
-                  </a>
-                </td>
-
-                <td className="px-4 py-3 text-slate-600">
-                  {customer.note || "-"}
-                </td>
-
-                {canManage && (
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onEdit?.(customer)}
-                        aria-label={`Ubah ${customer.name}`}
-                      >
-                        Ubah
-                      </Button>
-
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => onDelete?.(customer)}
-                        aria-label={`Hapus ${customer.name}`}
-                      >
-                        Hapus
-                      </Button>
-                    </div>
-                  </td>
-                )}
               </tr>
-            ))}
+            ) : (
+              customers.map((customer) => (
+                <tr key={customer._id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {customer.name}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <a
+                      href={whatsappLink(customer.whatsapp)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand-600 hover:underline"
+                    >
+                      {formatWhatsapp(customer.whatsapp)}
+                    </a>
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-600">
+                    {customer.note || "-"}
+                  </td>
+
+                  {canManage && (
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => onEdit?.(customer)}
+                          aria-label={`Ubah ${customer.name}`}
+                        >
+                          Ubah
+                        </Button>
+
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => onDelete?.(customer)}
+                          aria-label={`Hapus ${customer.name}`}
+                        >
+                          Hapus
+                        </Button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Layar kecil (< md): daftar kartu. */}
+      {kosong ? (
+        <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200 md:hidden">
+          Belum ada pelanggan yang cocok.
+        </p>
+      ) : (
       <ul className="space-y-3 md:hidden" aria-busy={isFetching || undefined}>
         {customers.map((customer) => (
           <li
@@ -154,6 +166,7 @@ export function CustomerTable({
           </li>
         ))}
       </ul>
+      )}
     </>
   );
 }

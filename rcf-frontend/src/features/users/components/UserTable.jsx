@@ -25,13 +25,7 @@ export function UserTable({
     return <TableSkeleton rows={5} columns={5} action />;
   }
 
-  if (users.length === 0) {
-    return (
-      <p className="py-10 text-center text-sm text-slate-500">
-        Belum ada user yang cocok.
-      </p>
-    );
-  }
+  const kosong = users.length === 0;
 
   return (
     <>
@@ -67,49 +61,66 @@ export function UserTable({
             className="divide-y divide-slate-100"
             aria-busy={isFetching || undefined}
           >
-            {users.map((user) => {
-              const iniSaya = String(user._id) === String(currentUserId);
+            {/* Kosong: header kolom tetap tampil, isi diganti satu baris pesan. */}
+            {kosong ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-4 py-10 text-center text-sm text-slate-500"
+                >
+                  Belum ada user yang cocok.
+                </td>
+              </tr>
+            ) : (
+              users.map((user) => {
+                const iniSaya = String(user._id) === String(currentUserId);
 
-              return (
-                <tr key={user._id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">
-                    {user.name}
-                    {iniSaya && (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-500">
-                        Anda
-                      </span>
-                    )}
-                  </td>
+                return (
+                  <tr key={user._id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-800">
+                      {user.name}
+                      {iniSaya && (
+                        <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-500">
+                          Anda
+                        </span>
+                      )}
+                    </td>
 
-                  <td className="px-4 py-3 text-slate-600">{user.username}</td>
-                  <td className="px-4 py-3 text-slate-600">{user.email}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {ROLE_LABEL[user.role] ?? user.role}
-                  </td>
+                    <td className="px-4 py-3 text-slate-600">{user.username}</td>
+                    <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {ROLE_LABEL[user.role] ?? user.role}
+                    </td>
 
-                  <td className="px-4 py-3">
-                    <StatusPill isActive={user.isActive} />
-                  </td>
+                    <td className="px-4 py-3">
+                      <StatusPill isActive={user.isActive} />
+                    </td>
 
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <UserActions
-                        user={user}
-                        iniSaya={iniSaya}
-                        onEdit={onEdit}
-                        onResetPassword={onResetPassword}
-                        onDelete={onDelete}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <UserActions
+                          user={user}
+                          iniSaya={iniSaya}
+                          onEdit={onEdit}
+                          onResetPassword={onResetPassword}
+                          onDelete={onDelete}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Layar kecil (< md): daftar kartu. */}
+      {kosong ? (
+        <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200 md:hidden">
+          Belum ada user yang cocok.
+        </p>
+      ) : (
       <ul className="space-y-3 md:hidden" aria-busy={isFetching || undefined}>
         {users.map((user) => {
           const iniSaya = String(user._id) === String(currentUserId);
@@ -149,6 +160,7 @@ export function UserTable({
           );
         })}
       </ul>
+      )}
     </>
   );
 }

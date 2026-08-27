@@ -46,13 +46,9 @@ export function OrderTable({
     );
   }
 
-  if (orders.length === 0) {
-    return (
-      <p className="py-10 text-center text-sm text-slate-500">{emptyText}</p>
-    );
-  }
-
   const adaAksi = typeof renderAction === "function";
+  const kosong = orders.length === 0;
+  const jumlahKolom = columns.length + (adaAksi ? 1 : 0);
 
   return (
     <>
@@ -90,33 +86,50 @@ export function OrderTable({
             className="divide-y divide-slate-100"
             aria-busy={isFetching || undefined}
           >
-            {orders.map((order) => (
-              <tr key={order._id} className="hover:bg-slate-50">
-                {columns.map((key) => (
-                  <td
-                    key={key}
-                    className={`px-4 py-3 ${
-                      SEMUA_KOLOM[key]?.align === "right" ? "text-right" : ""
-                    }`}
-                  >
-                    <OrderCell order={order} kolom={key} />
-                  </td>
-                ))}
-
-                {adaAksi && (
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      {renderAction(order)}
-                    </div>
-                  </td>
-                )}
+            {/* Kosong: header kolom tetap tampil, isi diganti satu baris pesan. */}
+            {kosong ? (
+              <tr>
+                <td
+                  colSpan={jumlahKolom}
+                  className="px-4 py-10 text-center text-sm text-slate-500"
+                >
+                  {emptyText}
+                </td>
               </tr>
-            ))}
+            ) : (
+              orders.map((order) => (
+                <tr key={order._id} className="hover:bg-slate-50">
+                  {columns.map((key) => (
+                    <td
+                      key={key}
+                      className={`px-4 py-3 ${
+                        SEMUA_KOLOM[key]?.align === "right" ? "text-right" : ""
+                      }`}
+                    >
+                      <OrderCell order={order} kolom={key} />
+                    </td>
+                  ))}
+
+                  {adaAksi && (
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        {renderAction(order)}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Layar kecil (< md): daftar kartu. Tiap kartu = satu order. */}
+      {kosong ? (
+        <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200 md:hidden">
+          {emptyText}
+        </p>
+      ) : (
       <ul
         className="space-y-3 md:hidden"
         aria-busy={isFetching || undefined}
@@ -170,6 +183,7 @@ export function OrderTable({
           </li>
         ))}
       </ul>
+      )}
     </>
   );
 }

@@ -18,7 +18,6 @@ import { ConfirmDialog } from "@/shared/components/ui";
 import { Sidebar } from "@/shared/components/layout/Sidebar";
 import { usePageTitle } from "@/shared/hooks/usePageTitle";
 import { useAuth } from "@/features/auth";
-import logoUrl from "@/assets/images/logo.jpg";
 
 /**
  * Kerangka halaman setelah login: sidebar navigasi + area konten.
@@ -156,8 +155,8 @@ export function AppLayout() {
 
       {/* Kolom konten: diberi margin kiri selebar sidebar di layar besar. */}
       <div className="lg:pl-60">
-        {/* Top bar hanya untuk mobile: tombol buka menu + brand. */}
-        <header className="flex items-center gap-3 border-b border-hairline bg-white px-4 py-3 lg:hidden">
+        {/* Top bar hanya untuk mobile: tombol buka menu. */}
+        <header className="flex items-center border-b border-hairline bg-white px-4 py-3 lg:hidden">
           <button
             type="button"
             aria-label="Buka menu"
@@ -166,13 +165,6 @@ export function AppLayout() {
           >
             <Menu className="size-5" aria-hidden="true" />
           </button>
-          <span className="flex items-center gap-2 font-semibold text-slate-900">
-            <img
-              src={logoUrl}
-              alt="Logo RCF Print"
-              className="size-9 shrink-0 rounded-lg object-cover"
-            />
-          </span>
         </header>
 
         <main className="px-4 py-6 sm:px-6 lg:px-8">

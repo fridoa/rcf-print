@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
   Button,
+  InfiniteScroll,
   Modal,
   Pagination,
   SelectField,
   TextField,
 } from "@/shared/components/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { OrderTable } from "../components/OrderTable";
 import { SelesaikanOrderForm } from "../components/SelesaikanOrderForm";
 import { KoreksiStatusForm } from "../components/KoreksiStatusForm";
@@ -22,7 +24,7 @@ import {
   STATUS_LIST,
   STATUS_LABEL,
 } from "../constants/order.constants";
-import { useOrders } from "../hooks/useOrders";
+import { useOrders, useInfiniteOrders } from "../hooks/useOrders";
 import {
   useCreateOrder,
   useSelesaikanOrder,
@@ -95,7 +97,11 @@ export function PesananPage() {
   // tidak mengganggu state form (buat/selesai/koreksi) dan sebaliknya.
   const [detailId, setDetailId] = useState(null);
 
-  const { data, isLoading, isFetching, error } = useOrders({
+  // Desktop: paginasi tombol. HP: infinite scroll. Filter API dipakai kedua
+  // hook; yang tak aktif dimatikan via enabled. (Lihat CustomerListPage.)
+  const isDesktop = useIsDesktop();
+
+  const filterApi = {
     search,
     jenis: jenis || undefined,
     status: status || undefined,
@@ -103,15 +109,35 @@ export function PesananPage() {
     // fokus ke pekerjaan yang masih berjalan. Order selesai tetap bisa dilihat
     // dengan memilih status "Selesai" di filter (status mengalahkan aktif).
     aktif: status ? undefined : true,
-    page,
-    limit,
-  });
+  };
+
+  const paged = useOrders(
+    { ...filterApi, page, limit },
+    { enabled: isDesktop }
+  );
+
+  const infinite = useInfiniteOrders(
+    { ...filterApi, limit },
+    { enabled: !isDesktop }
+  );
 
   const createMutation = useCreateOrder();
   const selesaikanMutation = useSelesaikanOrder();
   const koreksiMutation = useKoreksiStatus();
 
-  const pagination = data?.pagination;
+  const isLoading = isDesktop ? paged.isLoading : infinite.isLoading;
+  const isFetching = isDesktop ? paged.isFetching : infinite.isFetching;
+  const error = isDesktop ? paged.error : infinite.error;
+  const pagination = paged.data?.pagination;
+
+  const orders = useMemo(() => {
+    if (isDesktop) return paged.data?.items ?? [];
+    return infinite.data?.pages.flatMap((p) => p.items) ?? [];
+  }, [isDesktop, paged.data, infinite.data]);
+
+  const totalOrder = isDesktop
+    ? pagination?.total
+    : infinite.data?.pages[0]?.pagination?.total;
 
   const gantiHalaman = (halamanBaru) =>
     setFilter({ page: String(halamanBaru) }, { resetPage: false });
@@ -147,10 +173,10 @@ export function PesananPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Order Aktif</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {pagination
+            {typeof totalOrder === "number"
               ? status
-                ? `${pagination.total} order berstatus ${STATUS_LABEL[status] ?? status}.`
-                : `${pagination.total} order aktif (yang sudah selesai disembunyikan).`
+                ? `${totalOrder} order berstatus ${STATUS_LABEL[status] ?? status}.`
+                : `${totalOrder} order aktif (yang sudah selesai disembunyikan).`
               : "Semua order RCF Print."}
           </p>
         </div>
@@ -196,7 +222,7 @@ export function PesananPage() {
       )}
 
       <OrderTable
-        orders={data?.items ?? []}
+        orders={orders}
         columns={[
           "kode",
           "jenis",
@@ -247,17 +273,28 @@ export function PesananPage() {
         )}
       />
 
-      {pagination && (
-        <Pagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          onPageChange={gantiHalaman}
-          limit={limit}
-          onLimitChange={gantiLimit}
-          disabled={isFetching}
-        />
-      )}
+      {/* Desktop: paginasi tombol. HP: infinite scroll otomatis. */}
+      {isDesktop
+        ? pagination && (
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              onPageChange={gantiHalaman}
+              limit={limit}
+              onLimitChange={gantiLimit}
+              disabled={isFetching}
+            />
+          )
+        : !isLoading &&
+          orders.length > 0 && (
+            <InfiniteScroll
+              hasNextPage={infinite.hasNextPage}
+              isFetchingNextPage={infinite.isFetchingNextPage}
+              onLoadMore={infinite.fetchNextPage}
+              endText="Semua order sudah dimuat."
+            />
+          )}
 
       <Modal
         open={dialog.mode === "tambah"}

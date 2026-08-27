@@ -1,13 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Alert, Button, Modal, Pagination, TextField } from "@/shared/components/ui";
+import {
+  Alert,
+  Button,
+  InfiniteScroll,
+  Modal,
+  Pagination,
+  TextField,
+} from "@/shared/components/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { ROLES } from "@/shared/constants/roles";
 import { useAuth } from "@/features/auth";
 import { CustomerTable } from "../components/CustomerTable";
 import { CustomerForm } from "../components/CustomerForm";
 import { DeleteCustomerConfirm } from "../components/DeleteCustomerConfirm";
-import { useCustomers } from "../hooks/useCustomers";
+import { useCustomers, useInfiniteCustomers } from "../hooks/useCustomers";
 import {
   useCreateCustomer,
   useDeleteCustomer,
@@ -67,17 +75,41 @@ export function CustomerListPage() {
   const [dialog, setDialog] = useState({ mode: null, customer: null });
   const tutupDialog = () => setDialog({ mode: null, customer: null });
 
-  const { data, isLoading, isFetching, error } = useCustomers({
-    search,
-    page,
-    limit,
-  });
+  // Di desktop: paginasi tombol (query useCustomers). Di HP: infinite scroll
+  // (useInfiniteCustomers). Hook yang tidak dipakai dimatikan via enabled
+  // supaya tidak menembak API dua kali. keepPreviousData di desktop menjaga
+  // daftar tidak berkedip saat pindah halaman.
+  const isDesktop = useIsDesktop();
+
+  const paged = useCustomers(
+    { search, page, limit },
+    { enabled: isDesktop }
+  );
+
+  const infinite = useInfiniteCustomers(
+    { search, limit },
+    { enabled: !isDesktop }
+  );
 
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
   const deleteMutation = useDeleteCustomer();
 
-  const pagination = data?.pagination;
+  // Ratakan sumber data jadi satu bentuk supaya bagian render tidak bercabang.
+  const isLoading = isDesktop ? paged.isLoading : infinite.isLoading;
+  const isFetching = isDesktop ? paged.isFetching : infinite.isFetching;
+  const error = isDesktop ? paged.error : infinite.error;
+  const pagination = paged.data?.pagination;
+
+  const customers = useMemo(() => {
+    if (isDesktop) return paged.data?.items ?? [];
+    return infinite.data?.pages.flatMap((p) => p.items) ?? [];
+  }, [isDesktop, paged.data, infinite.data]);
+
+  // Total terdaftar: dari pagination (desktop) atau halaman pertama (HP).
+  const totalTerdaftar = isDesktop
+    ? pagination?.total
+    : infinite.data?.pages[0]?.pagination?.total;
 
   const gantiHalaman = (halamanBaru) =>
     setFilter({ page: String(halamanBaru) }, { resetPage: false });
@@ -118,8 +150,8 @@ export function CustomerListPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Pelanggan</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {pagination
-              ? `${pagination.total} pelanggan terdaftar.`
+            {typeof totalTerdaftar === "number"
+              ? `${totalTerdaftar} pelanggan terdaftar.`
               : "Data pelanggan RCF Print."}
           </p>
         </div>
@@ -153,7 +185,7 @@ export function CustomerListPage() {
       )}
 
       <CustomerTable
-        customers={data?.items ?? []}
+        customers={customers}
         isLoading={isLoading}
         isFetching={isFetching}
         canManage={canManage}
@@ -167,17 +199,28 @@ export function CustomerListPage() {
         }}
       />
 
-      {pagination && (
-        <Pagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          onPageChange={gantiHalaman}
-          limit={limit}
-          onLimitChange={gantiLimit}
-          disabled={isFetching}
-        />
-      )}
+      {/* Desktop: paginasi tombol. HP: infinite scroll otomatis. */}
+      {isDesktop
+        ? pagination && (
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              onPageChange={gantiHalaman}
+              limit={limit}
+              onLimitChange={gantiLimit}
+              disabled={isFetching}
+            />
+          )
+        : !isLoading &&
+          customers.length > 0 && (
+            <InfiniteScroll
+              hasNextPage={infinite.hasNextPage}
+              isFetchingNextPage={infinite.isFetchingNextPage}
+              onLoadMore={infinite.fetchNextPage}
+              endText="Semua pelanggan sudah dimuat."
+            />
+          )}
 
       <Modal
         open={dialog.mode === "tambah"}

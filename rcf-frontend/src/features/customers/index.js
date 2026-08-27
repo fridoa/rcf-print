@@ -7,7 +7,7 @@ export { CustomerTable } from "./components/CustomerTable";
 export { CustomerForm } from "./components/CustomerForm";
 export { customerApi } from "./api/customer.api";
 export { customerSchema } from "./schemas/customer.schema";
-export { useCustomers, customerKeys } from "./hooks/useCustomers";
+export { useCustomers, useInfiniteCustomers, customerKeys } from "./hooks/useCustomers";
 export {
   useCreateCustomer,
   useUpdateCustomer,

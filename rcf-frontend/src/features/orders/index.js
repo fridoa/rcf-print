@@ -18,6 +18,7 @@ export { OrderDetailDialog } from "./components/OrderDetailDialog";
 export { orderApi } from "./api/order.api";
 export {
   useOrders,
+  useInfiniteOrders,
   useOrder,
   useOrderRiwayat,
   useOrderStatistik,

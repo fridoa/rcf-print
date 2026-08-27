@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
   Button,
+  InfiniteScroll,
   Modal,
   Pagination,
   SelectField,
   TextField,
 } from "@/shared/components/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { ROLE_LIST, ROLE_LABEL } from "@/shared/constants/roles";
 import { useAuth } from "@/features/auth";
 import { UserTable } from "../components/UserTable";
 import { UserForm } from "../components/UserForm";
 import { ResetPasswordForm } from "../components/ResetPasswordForm";
 import { DeleteUserConfirm } from "../components/DeleteUserConfirm";
-import { useUsers } from "../hooks/useUsers";
+import { useUsers, useInfiniteUsers } from "../hooks/useUsers";
 import {
   useCreateUser,
   useDeleteUser,
@@ -95,20 +97,44 @@ export function UserListPage() {
   const [dialog, setDialog] = useState({ mode: null, user: null });
   const tutupDialog = () => setDialog({ mode: null, user: null });
 
-  const { data, isLoading, isFetching, error } = useUsers({
+  // Desktop: paginasi tombol. HP: infinite scroll. Hook yang tak dipakai
+  // dimatikan via enabled supaya tak dobel tembak API. (Lihat CustomerListPage.)
+  const isDesktop = useIsDesktop();
+
+  const filterApi = {
     search,
     role: role || undefined,
-    isActive: status === "" ? undefined : status, // "true"/"false" string, dikirim ke API
-    page,
-    limit,
-  });
+    isActive: status === "" ? undefined : status,
+  };
+
+  const paged = useUsers(
+    { ...filterApi, page, limit },
+    { enabled: isDesktop }
+  );
+
+  const infinite = useInfiniteUsers(
+    { ...filterApi, limit },
+    { enabled: !isDesktop }
+  );
 
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const resetMutation = useResetUserPassword();
   const deleteMutation = useDeleteUser();
 
-  const pagination = data?.pagination;
+  const isLoading = isDesktop ? paged.isLoading : infinite.isLoading;
+  const isFetching = isDesktop ? paged.isFetching : infinite.isFetching;
+  const error = isDesktop ? paged.error : infinite.error;
+  const pagination = paged.data?.pagination;
+
+  const users = useMemo(() => {
+    if (isDesktop) return paged.data?.items ?? [];
+    return infinite.data?.pages.flatMap((p) => p.items) ?? [];
+  }, [isDesktop, paged.data, infinite.data]);
+
+  const totalTerdaftar = isDesktop
+    ? pagination?.total
+    : infinite.data?.pages[0]?.pagination?.total;
 
   const gantiHalaman = (halamanBaru) =>
     setFilter({ page: String(halamanBaru) }, { resetPage: false });
@@ -146,8 +172,8 @@ export function UserListPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Pengguna</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {pagination
-              ? `${pagination.total} user terdaftar.`
+            {typeof totalTerdaftar === "number"
+              ? `${totalTerdaftar} user terdaftar.`
               : "Kelola akun dan hak akses pengguna sistem."}
           </p>
         </div>
@@ -193,7 +219,7 @@ export function UserListPage() {
       )}
 
       <UserTable
-        users={data?.items ?? []}
+        users={users}
         isLoading={isLoading}
         isFetching={isFetching}
         currentUserId={currentUser?._id}
@@ -211,17 +237,28 @@ export function UserListPage() {
         }}
       />
 
-      {pagination && (
-        <Pagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          onPageChange={gantiHalaman}
-          limit={limit}
-          onLimitChange={gantiLimit}
-          disabled={isFetching}
-        />
-      )}
+      {/* Desktop: paginasi tombol. HP: infinite scroll otomatis. */}
+      {isDesktop
+        ? pagination && (
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              onPageChange={gantiHalaman}
+              limit={limit}
+              onLimitChange={gantiLimit}
+              disabled={isFetching}
+            />
+          )
+        : !isLoading &&
+          users.length > 0 && (
+            <InfiniteScroll
+              hasNextPage={infinite.hasNextPage}
+              isFetchingNextPage={infinite.isFetchingNextPage}
+              onLoadMore={infinite.fetchNextPage}
+              endText="Semua user sudah dimuat."
+            />
+          )}
 
       <Modal
         open={dialog.mode === "tambah"}

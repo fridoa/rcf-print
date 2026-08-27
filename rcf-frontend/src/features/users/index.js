@@ -14,7 +14,7 @@ export {
   createUserSchema,
   resetPasswordSchema,
 } from "./schemas/user.schema";
-export { useUsers, userKeys } from "./hooks/useUsers";
+export { useUsers, useInfiniteUsers, userKeys } from "./hooks/useUsers";
 export {
   useCreateUser,
   useUpdateUser,

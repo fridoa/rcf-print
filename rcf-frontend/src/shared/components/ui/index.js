@@ -7,6 +7,7 @@ export { Spinner } from "./Spinner";
 export { Modal } from "./Modal";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { Pagination } from "./Pagination";
+export { InfiniteScroll } from "./InfiniteScroll";
 export { DonutChart } from "./DonutChart";
 export { StatTile } from "./StatTile";
 export { BarList } from "./BarList";

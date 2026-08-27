@@ -34,16 +34,33 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// jsdom belum punya matchMedia; beberapa komponen UI/Tailwind bisa memanggilnya.
+// jsdom belum punya matchMedia. useIsDesktop memakainya untuk memilih antara
+// paginasi tombol (desktop) dan infinite scroll (HP). Default-kan ke DESKTOP
+// (matches:true untuk min-width) supaya test halaman menguji jalur paginasi
+// tombol yang memang ditulis di test — test khusus infinite scroll meng-override
+// window.matchMedia sendiri.
 if (!window.matchMedia) {
   window.matchMedia = (query) => ({
-    matches: false,
+    matches: /min-width/.test(query),
     media: query,
     onchange: null,
     addEventListener: () => {},
     removeEventListener: () => {},
     dispatchEvent: () => false,
   });
+}
+
+// jsdom tidak punya IntersectionObserver; InfiniteScroll memakainya. Stub
+// no-op supaya komponen bisa dirender di test tanpa error.
+if (typeof window.IntersectionObserver === "undefined") {
+  window.IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  };
 }
 
 /**

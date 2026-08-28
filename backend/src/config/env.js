@@ -82,7 +82,11 @@ export const env = {
   JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1d",
 
-  EMAIL_SMTP_SERVICE_NAME: process.env.EMAIL_SMTP_SERVICE_NAME || "gmail",
+  EMAIL_SMTP_SERVICE_NAME: process.env.EMAIL_SMTP_SERVICE_NAME || "",
+  // Host/port untuk provider non-preset (Zoho). Kalau SERVICE_NAME diisi,
+  // nodemailer memakai preset-nya dan host/port diabaikan — jangan set dua-duanya.
+  EMAIL_SMTP_HOST: process.env.EMAIL_SMTP_HOST || "smtp.zoho.com",
+  EMAIL_SMTP_PORT: Number(process.env.EMAIL_SMTP_PORT) || 465,
   EMAIL_SMTP_USER: process.env.EMAIL_SMTP_USER || "",
   EMAIL_SMTP_PASS: process.env.EMAIL_SMTP_PASS || "",
   EMAIL_SMTP_FROM_NAME: process.env.EMAIL_SMTP_FROM_NAME || "RCF Print",
@@ -101,6 +105,25 @@ export const env = {
 
   OTP_EXPIRES_MINUTES: Number(process.env.OTP_EXPIRES_MINUTES) || 10,
   RESET_TOKEN_EXPIRES_MINUTES: Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 60,
+
+  /**
+   * === Rate limiting endpoint auth publik ===
+   *
+   * Limiter per-IP (express-rate-limit), dipasang HANYA di route auth
+   * publik (login, forgot-password, verify-otp, reset-password) — bukan
+   * global, karena endpoint internal sudah dilindungi token + role dan
+   * limiter global hanya bikin UX admin tersendat.
+   *
+   * Di-skip total di autotest supaya test suite tidak saling memblokir.
+   */
+  RATE_LIMIT_WINDOW_MINUTES: Number(process.env.RATE_LIMIT_WINDOW_MINUTES) || 15,
+  RATE_LIMIT_LOGIN_MAX: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20,
+  RATE_LIMIT_FORGOT_MAX: Number(process.env.RATE_LIMIT_FORGOT_MAX) || 3,
+  RATE_LIMIT_OTP_MAX: Number(process.env.RATE_LIMIT_OTP_MAX) || 10,
+  /** Batas permintaan forgot-password per EMAIL (bukan per IP) per jam. */
+  RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY: Number(
+    process.env.RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY
+  ) || 3,
 
   /**
    * ImageKit — penyimpanan file desain.

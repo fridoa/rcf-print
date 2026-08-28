@@ -3,6 +3,9 @@ import {
   loginSchema,
   editProfileSchema,
   changePasswordSchema,
+  lupaPasswordSchema,
+  verifikasiOtpSchema,
+  resetPasswordSchema,
 } from "./auth.validator.js";
 
 const login = async (req, res, next) => {
@@ -74,4 +77,63 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-export default { login, me, editProfile, changePassword };
+/**
+ * Lupa katasandi — 3 endpoint publik (tanpa authenticate):
+ * permintaan reset, verifikasi OTP, dan reset password lewat token email.
+ */
+const lupaPassword = async (req, res, next) => {
+  try {
+    const payload = await lupaPasswordSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    const hasil = await authService.lupaPassword(payload);
+
+    res.json({
+      success: true,
+      message: hasil.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const verifikasiOtp = async (req, res, next) => {
+  try {
+    const payload = await verifikasiOtpSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    const hasil = await authService.verifikasiOtp(payload);
+
+    res.json({
+      success: true,
+      message: "Kode OTP valid",
+      data: { resetToken: hasil.resetToken },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const payload = await resetPasswordSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    await authService.resetPassword(payload);
+
+    res.json({
+      success: true,
+      message: "Password berhasil direset, silakan login",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export default { login, me, editProfile, changePassword, lupaPassword, verifikasiOtp, resetPassword };

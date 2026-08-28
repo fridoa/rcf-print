@@ -72,3 +72,32 @@ export const changePasswordSchema = Yup.object({
     .required("Konfirmasi password wajib diisi")
     .oneOf([Yup.ref("newPassword")], "Konfirmasi password tidak sama"),
 });
+
+// === Lupa katasandi ===
+
+export const lupaPasswordSchema = Yup.object({
+  email: Yup.string()
+    .required("Email wajib diisi")
+    .trim()
+    .lowercase()
+    .email("Format email tidak valid"),
+});
+
+export const verifikasiOtpSchema = Yup.object({
+  email: Yup.string()
+    .required("Email wajib diisi")
+    .trim()
+    .lowercase()
+    .email("Format email tidak valid"),
+  otp: Yup.string()
+    .required("Kode OTP wajib diisi")
+    .trim()
+    .matches(/^\d{6}$/, "Kode OTP harus 6 digit angka"),
+});
+
+export const resetPasswordSchema = Yup.object({
+  token: Yup.string().required("Token reset wajib diisi"),
+  newPassword: Yup.string()
+    .required("Password baru wajib diisi")
+    .min(6, "Password baru minimal 6 karakter"),
+});

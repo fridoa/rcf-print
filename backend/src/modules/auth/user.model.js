@@ -42,6 +42,46 @@ const userSchema = new Schema(
       type: Boolean,
       default: true,
     },
+
+    // === Lupa password ===
+    // Hanya HASH yang disimpan; nilai mentah (OTP/token) hanya dikirim ke
+    // email user. Kelengkapan keduanya dicek bersama: ada hash OTP berarti
+    // permintaan reset sedang berjalan.
+    // Semua field di bawah TANPA default:null — field harus absen (bukan
+    // null) supaya sparse unique index reset_token_hash melewatkan user
+    // yang tidak punya token aktif. default:null membuat semua user punya
+    // reset_token_hash:null -> E11000 dup key { null }.
+    otp_hash: {
+      type: String,
+      select: false,
+    },
+    otp_expires_at: {
+      type: Date,
+      select: false,
+    },
+    reset_token_hash: {
+      type: String,
+      select: false,
+      // single-use: token lama hangus begitu yang baru dibuat
+      index: { unique: true, sparse: true },
+    },
+    reset_token_expires_at: {
+      type: Date,
+      select: false,
+    },
+    // Batas permintaan forgot-password per EMAIL per jam — melindungi satu
+    // korban dari pemboman email lintas IP (limiter per-IP tidak menangkap
+    // pola ini). Di-reset setiap jam bergulir.
+    forgot_request_count: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    forgot_window_started_at: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true }
 );

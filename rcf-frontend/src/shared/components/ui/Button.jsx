@@ -10,6 +10,10 @@ const VARIANTS = {
     "bg-danger-500 text-white hover:bg-danger-600 focus-visible:outline-danger-500",
   ghost:
     "bg-transparent text-slate-600 hover:bg-slate-100 focus-visible:outline-slate-400",
+  // Ungu: dipakai untuk aksi keamanan (ubah password) supaya berbeda jelas
+  // dari aksi utama (brand) tanpa terlihat berbahaya seperti `danger`.
+  purple:
+    "bg-violet-600 text-white hover:bg-violet-700 focus-visible:outline-violet-600",
 };
 
 const SIZES = {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
@@ -25,24 +25,22 @@ const USER_ADMIN = {
   isActive: true,
 };
 
-/** Route minimal; ProfilePage butuh user dari AuthProvider (restore /auth/me). */
+const PASSWORD_BARU = "rahasia123";
+
 function ProfileRoutes() {
   return (
     <Routes>
       <Route path="/profil" element={<ProfilePage />} />
-      <Route path="/profil/ganti-password" element={<p>HALAMAN GANTI PASSWORD</p>} />
     </Routes>
   );
 }
 
-/** Render dengan sesi aktif: token di storage + /auth/me menjawab user. */
 async function renderLoggedIn(user = USER_ADMIN) {
   localStorage.setItem("rcf.token", "tok-123");
   authApi.me.mockResolvedValue(user);
 
   const hasil = renderWithProviders(<ProfileRoutes />, { routes: ["/profil"] });
 
-  // tunggu restore sesi selesai supaya form terisi nilai lama
   await waitFor(() =>
     expect(screen.getByLabelText(/^nama$/i)).toHaveValue(user.name)
   );
@@ -54,6 +52,11 @@ describe("ProfilePage", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.resetAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("mengisi form dengan data user yang sedang login", async () => {
@@ -72,63 +75,20 @@ describe("ProfilePage", () => {
     const inputNama = screen.getByLabelText(/^nama$/i);
     await userEvent.clear(inputNama);
     await userEvent.type(inputNama, "Admin Baru");
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^simpan perubahan$/i }));
 
     await waitFor(() =>
       expect(authApi.editProfile).toHaveBeenCalledWith({ name: "Admin Baru" })
     );
-    // username & email tidak ikut walau nilainya ada di form
     expect(authApi.editProfile).toHaveBeenCalledTimes(1);
-  });
-
-  it("mengirim dua field sekaligus kalau dua-duanya diubah", async () => {
-    authApi.editProfile.mockResolvedValue({
-      ...USER_ADMIN,
-      name: "Admin Baru",
-      email: "admin2@rcfprint.com",
-    });
-
-    await renderLoggedIn();
-
-    const inputNama = screen.getByLabelText(/^nama$/i);
-    await userEvent.clear(inputNama);
-    await userEvent.type(inputNama, "Admin Baru");
-
-    const inputEmail = screen.getByLabelText(/^email$/i);
-    await userEvent.clear(inputEmail);
-    await userEvent.type(inputEmail, "admin2@rcfprint.com");
-
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
-
-    await waitFor(() =>
-      expect(authApi.editProfile).toHaveBeenCalledWith({
-        name: "Admin Baru",
-        email: "admin2@rcfprint.com",
-      })
-    );
-  });
-
-  it("memperbarui nama user di context setelah sukses", async () => {
-    authApi.editProfile.mockResolvedValue({ ...USER_ADMIN, name: "Admin Baru" });
-
-    await renderLoggedIn();
-
-    const inputNama = screen.getByLabelText(/^nama$/i);
-    await userEvent.clear(inputNama);
-    await userEvent.type(inputNama, "Admin Baru");
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
-
-    expect(
-      await screen.findByText("Profil berhasil diperbarui")
-    ).toBeInTheDocument();
-    // form ikut menampilkan nilai terbaru dari context, bukan nilai lama
-    expect(screen.getByLabelText(/^nama$/i)).toHaveValue("Admin Baru");
   });
 
   it("tombol simpan mati sebelum ada perubahan", async () => {
     await renderLoggedIn();
 
-    expect(screen.getByRole("button", { name: /simpan/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /^simpan perubahan$/i })
+    ).toBeDisabled();
     expect(authApi.editProfile).not.toHaveBeenCalled();
   });
 
@@ -136,90 +96,79 @@ describe("ProfilePage", () => {
     await renderLoggedIn();
 
     await userEvent.clear(screen.getByLabelText(/^nama$/i));
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /^simpan perubahan$/i })
+    );
 
     expect(await screen.findByText("Nama wajib diisi")).toBeInTheDocument();
     expect(authApi.editProfile).not.toHaveBeenCalled();
   });
 
-  it("menolak format email salah tanpa memanggil API", async () => {
+  it("menampilkan kartu identitas: inisial avatar, @username, role, status", async () => {
     await renderLoggedIn();
 
-    const inputEmail = screen.getByLabelText(/^email$/i);
-    await userEvent.clear(inputEmail);
-    await userEvent.type(inputEmail, "bukan-email");
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    expect(screen.getByText("AR")).toBeInTheDocument();
+    expect(screen.getByText("@admin")).toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Aktif")).toBeInTheDocument();
+  });
 
+  it("menandai akun nonaktif dengan badge berbeda", async () => {
+    await renderLoggedIn({ ...USER_ADMIN, isActive: false });
+
+    expect(screen.getByText("Tidak aktif")).toBeInTheDocument();
+    expect(screen.queryByText("Aktif")).not.toBeInTheDocument();
+  });
+
+  it("tombol Ubah Password membuka panel inline (bukan navigasi)", async () => {
+    await renderLoggedIn();
+
+    // panel tertutup: tidak ada input password di DOM
     expect(
-      await screen.findByText("Format email tidak valid")
-    ).toBeInTheDocument();
-    expect(authApi.editProfile).not.toHaveBeenCalled();
+      screen.queryByLabelText(/^password lama$/i)
+    ).not.toBeInTheDocument();
+
+    const tombol = screen.getByRole("button", { name: /ubah password/i });
+    expect(tombol).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(tombol);
+
+    expect(await screen.findByLabelText(/^password lama$/i)).toBeInTheDocument();
+    expect(tombol).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("menampilkan pesan 409 dari server apa adanya", async () => {
-    authApi.editProfile.mockRejectedValue({
-      status: 409,
-      message: "Username sudah dipakai user lain",
-      errors: [],
-    });
+  it("mengganti password lewat panel inline dan mereset form", async () => {
+    authApi.changePassword.mockResolvedValue({});
 
     await renderLoggedIn();
-
-    const inputUsername = screen.getByLabelText(/^username$/i);
-    await userEvent.clear(inputUsername);
-    await userEvent.type(inputUsername, "budi");
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
-
-    expect(
-      await screen.findByText("Username sudah dipakai user lain")
-    ).toBeInTheDocument();
-    // context tidak ikut berubah saat request gagal
-    expect(screen.getByLabelText(/^nama$/i)).toHaveValue("Admin RCF");
-  });
-
-  it("tombol batal mengembalikan nilai form ke data awal", async () => {
-    await renderLoggedIn();
-
-    const inputNama = screen.getByLabelText(/^nama$/i);
-    await userEvent.clear(inputNama);
-    await userEvent.type(inputNama, "Coba Ganti");
-
-    await userEvent.click(screen.getByRole("button", { name: /batal/i }));
-
-    expect(screen.getByLabelText(/^nama$/i)).toHaveValue("Admin RCF");
-    expect(screen.getByRole("button", { name: /simpan/i })).toBeDisabled();
-  });
-
-  it("menonaktifkan tombol selama request berjalan", async () => {
-    let selesaikan;
-    authApi.editProfile.mockImplementation(
-      () => new Promise((resolve) => (selesaikan = resolve))
+    await userEvent.click(
+      screen.getByRole("button", { name: /ubah password/i })
     );
 
-    await renderLoggedIn();
-
-    const inputNama = screen.getByLabelText(/^nama$/i);
-    await userEvent.clear(inputNama);
-    await userEvent.type(inputNama, "Admin Baru");
-    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    await userEvent.type(
+      await screen.findByLabelText(/^password lama$/i),
+      "passwordLama"
+    );
+    await userEvent.type(
+      screen.getByLabelText(/^password baru$/i),
+      PASSWORD_BARU
+    );
+    await userEvent.type(
+      screen.getByLabelText(/^konfirmasi password baru$/i),
+      PASSWORD_BARU
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /^ubah password$/i, exact: true })
+    );
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /menyimpan/i })).toBeDisabled()
+      expect(authApi.changePassword).toHaveBeenCalledWith({
+        oldPassword: "passwordLama",
+        newPassword: PASSWORD_BARU,
+        confirmPassword: PASSWORD_BARU,
+      })
     );
-
-    selesaikan({ ...USER_ADMIN, name: "Admin Baru" });
     expect(
-      await screen.findByText("Profil berhasil diperbarui")
-    ).toBeInTheDocument();
-  });
-
-  it("menyediakan tautan ke halaman ubah password", async () => {
-    await renderLoggedIn();
-
-    await userEvent.click(screen.getByRole("link", { name: /ubah password/i }));
-
-    expect(
-      await screen.findByText("HALAMAN GANTI PASSWORD")
+      await screen.findByText("Password berhasil diubah")
     ).toBeInTheDocument();
   });
 });

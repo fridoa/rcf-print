@@ -14,3 +14,5 @@ export { StatTile } from "./StatTile";
 export { BarList } from "./BarList";
 export { Calendar } from "./Calendar";
 export { DateRangePickerField } from "./DateRangePickerField";
+export { Avatar } from "./Avatar";
+export { Collapse } from "./Collapse";

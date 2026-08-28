@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import { ROLES } from "@/shared/constants/roles";
 import { ROUTES } from "@/shared/constants/routes";
 import { ConfirmDialog } from "@/shared/components/ui";
 import { Sidebar } from "@/shared/components/layout/Sidebar";
+import { cn } from "@/shared/lib/cn";
 import { usePageTitle } from "@/shared/hooks/usePageTitle";
 import { useAuth } from "@/features/auth";
 
@@ -122,6 +123,25 @@ export function AppLayout() {
     setKonfirmasiLogout(true);
   };
 
+  // Esc menutup drawer (pola yang sama dengan Modal), dan selama drawer
+  // terbuka body dikunci supaya halaman di belakang tidak ikut tergulir.
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    const overflowAwal = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = overflowAwal;
+    };
+  }, [drawerOpen]);
+
   const navItems = NAV.filter(
     (item) => !item.roles || item.roles.includes(user?.role)
   );
@@ -133,25 +153,37 @@ export function AppLayout() {
         <Sidebar items={navItems} user={user} onLogout={mintaLogout} />
       </div>
 
-      {/* Drawer mobile: overlay + sidebar geser dari kiri. */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            type="button"
-            aria-label="Tutup menu"
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => setDrawerOpen(false)}
+      {/* Drawer mobile tetap mounted agar animasi tutup sempat selesai. */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 transition-opacity duration-300 ease-out lg:hidden motion-reduce:transition-none",
+          drawerOpen
+            ? "opacity-100"
+            : "pointer-events-none opacity-0"
+        )}
+        aria-hidden={!drawerOpen}
+        inert={!drawerOpen ? "" : undefined}
+      >
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          className="absolute inset-0 bg-slate-900/40"
+          onClick={() => setDrawerOpen(false)}
+        />
+        <div
+          className={cn(
+            "absolute inset-y-0 left-0 shadow-xl transition-transform duration-300 ease-out motion-reduce:transition-none",
+            drawerOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <Sidebar
+            items={navItems}
+            user={user}
+            onLogout={mintaLogout}
+            onNavigate={() => setDrawerOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 shadow-xl">
-            <Sidebar
-              items={navItems}
-              user={user}
-              onLogout={mintaLogout}
-              onNavigate={() => setDrawerOpen(false)}
-            />
-          </div>
         </div>
-      )}
+      </div>
 
       {/* Kolom konten: diberi margin kiri selebar sidebar di layar besar. */}
       <div className="lg:pl-60">

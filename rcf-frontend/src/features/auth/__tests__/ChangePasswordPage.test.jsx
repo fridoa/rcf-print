@@ -202,7 +202,8 @@ describe("ChangePasswordPage", () => {
   it("menyediakan tautan kembali ke profil", async () => {
     await renderLoggedIn();
 
-    await userEvent.click(screen.getByRole("link", { name: /kembali ke profil/i }));
+    // link balik sekarang di breadcrumb atas, labelnya "Profil Saya"
+    await userEvent.click(screen.getByRole("link", { name: /profil saya/i }));
 
     expect(await screen.findByText("HALAMAN PROFIL")).toBeInTheDocument();
   });

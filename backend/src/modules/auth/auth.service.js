@@ -165,20 +165,18 @@ const lupaPassword = async ({ email }) => {
     );
     await user.save();
 
-    // Kirim email di background: respons 200 tidak menunggu SMTP.
-    // Zoho bisa makan >20 dtk (lebih dari timeout axios FE) — kalau
-    // di-await, user lihat "timeout" padahal email justru terkirim.
-    // Respons forgot memang generik, tidak ada hasil kirim yang perlu
-    // dilaporkan — gagal kirim cukup dicatat di log server.
-    kirimEmailResetPassword(user, otp, resetToken).catch((err) => {
-      // jangan biarkan rejection menghantam process — cukup log.
-      // Sertakan email tujuan supaya log bisa digreppd saat user
-      // melapor "kok tidak ada email masuk".
+    // WAJIB await: di Vercel serverless, function langsung mati setelah
+    // response dikirim — promise fire-and-forget tidak akan pernah selesai.
+    // Dibungkus try/catch supaya kegagalan SMTP tidak mengubah response
+    // (tetap 200 generik — anti user-enumeration).
+    try {
+      await kirimEmailResetPassword(user, otp, resetToken);
+    } catch (err) {
       console.error(
         `[mail] gagal kirim email reset ke ${user.email}:`,
         err?.message ?? err
       );
-    });
+    }
   }
 
   return { message: "Jika email terdaftar, instruksi reset sudah dikirim." };

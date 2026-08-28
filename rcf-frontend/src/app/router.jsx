@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import {
   ChangePasswordPage,
   LoginPage,
+  LupaKatasandiPage,
   ProfilePage,
   RequireAuth,
   RequireRole,
@@ -43,6 +44,11 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path={ROUTES.login} element={<LoginPage />} />
+
+      {/* Lupa katasandi — publik; user justru tidak bisa login.
+          Satu path dua wajah (mengikuti link email BE):
+          tanpa ?token -> form minta email, dengan ?token -> form password baru. */}
+      <Route path={ROUTES.lupaKatasandi} element={<LupaKatasandiPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>

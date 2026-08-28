@@ -1,5 +1,8 @@
 export const ROUTES = {
   login: "/login",
+  // Path harus PERSIS link email reset dari backend
+  // (mails/templates/resetPassword.js): /lupa-katasandi?token=...
+  lupaKatasandi: "/lupa-katasandi",
   dashboard: "/",
   profile: "/profil",
   changePassword: "/profil/ganti-password",

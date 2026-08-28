@@ -1,6 +1,8 @@
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { Link } from "react-router-dom";
 import { Alert, Button, TextField } from "@/shared/components/ui";
+import { ROUTES } from "@/shared/constants/routes";
 import { loginSchema } from "../schemas/auth.schema";
 
 /**
@@ -79,6 +81,15 @@ export function LoginForm({
           />
         )}
       />
+
+      <div className="flex justify-end">
+        <Link
+          to={ROUTES.lupaKatasandi}
+          className="text-sm font-medium text-brand-600 hover:underline"
+        >
+          Lupa kata sandi?
+        </Link>
+      </div>
 
       <Button type="submit" size="lg" isLoading={isSubmitting}>
         {isSubmitting ? "Masuk..." : "Masuk"}

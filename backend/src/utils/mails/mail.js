@@ -41,14 +41,25 @@ const ensureSiap = () => {
 
 // Transport dibuat malas (lazy) dan di-cache — tidak saat import, supaya
 // modul ini bisa di-import walau kredensial kosong (mis. di autotest).
+//
+// Catatan Vercel/serverless: port 465 (TLS implisit) sering di-throttle
+// atau diblokir oleh provider serverless. Port 587 (STARTTLS) jauh lebih
+// andal. Timeout ditambahkan supaya koneksi gagal cepat alih-alih
+// menggantung sampai function timeout Vercel (10 dtk default).
 let _transport = null;
 const transport = () => {
   if (!_transport) {
+    const port = Number(env.EMAIL_SMTP_PORT) || 587;
     _transport = nodemailer.createTransport({
       host: env.EMAIL_SMTP_HOST || "smtp.zoho.com",
-      port: Number(env.EMAIL_SMTP_PORT) || 465,
-      secure: (Number(env.EMAIL_SMTP_PORT) || 465) === 465, // 465 = TLS implisit
+      port,
+      secure: port === 465, // 465 = TLS implisit, 587 = STARTTLS
       auth: { user: env.EMAIL_SMTP_USER, pass: env.EMAIL_SMTP_PASS },
+      // Timeout agresif untuk serverless — gagal cepat lebih baik daripada
+      // menggantung dan membuang function execution time.
+      connectionTimeout: 5_000, // 5 dtk untuk buka koneksi TCP
+      greetingTimeout: 5_000,   // 5 dtk tunggu greeting SMTP
+      socketTimeout: 10_000,    // 10 dtk untuk keseluruhan operasi
     });
   }
   return _transport;

@@ -50,7 +50,9 @@ export function InfiniteScroll({
     <div className="py-4 text-center text-sm text-slate-500">
       {isFetchingNextPage && (
         <span className="inline-flex items-center gap-2">
-          <Spinner label="Memuat lagi..." />
+          {/* Spinner label kosong: teks "Memuat lagi..." di sebelahnya sudah
+              menjadi label yang terbaca, jadi tidak perlu digandakan di sr-only. */}
+          <Spinner label="" />
           <span>Memuat lagi...</span>
         </span>
       )}

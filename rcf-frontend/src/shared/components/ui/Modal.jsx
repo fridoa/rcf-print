@@ -37,8 +37,15 @@ export function Modal({ open, onClose, title, description, children, size = "md"
         onClose?.();
       }}
       className={cn(
-        "w-full rounded-2xl p-0 backdrop:bg-slate-900/40",
+        // Di layar HP, w-full membuat dialog menempel tepi layar kiri-kanan.
+        // calc(100%-2rem) memberi jeda 1rem tiap sisi; di >=sm kembali w-full
+        // karena max-w-md/lg sudah yang membatasi.
+        "w-[calc(100%-2rem)] sm:w-full",
         lebar,
+        // Form panjang (order, detail) tidak menembus layar: konten ikut
+        // scroll di dalam dialog, maksimal 85% tinggi viewport.
+        "max-h-[85dvh] overflow-y-auto",
+        "rounded-2xl p-0 backdrop:bg-slate-900/40",
         "m-auto bg-white shadow-lg"
       )}
     >

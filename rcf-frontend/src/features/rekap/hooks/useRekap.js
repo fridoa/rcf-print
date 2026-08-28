@@ -15,8 +15,12 @@ export const rekapKeys = {
  */
 export function useRekapHarian(params) {
   return useQuery({
-    queryKey: rekapKeys.harian(params),
-    queryFn: () => rekapApi.harian(params),
+    // params null = rentang tidak valid (dari > sampai, admin masih mengubah).
+    // enabled mencegah query — jangan sampai request dengan rentang kosong
+    // terkirim hanya karena key berubah.
+    queryKey: rekapKeys.harian(params ?? {}),
+    queryFn: () => rekapApi.harian(params ?? {}),
+    enabled: params != null,
     placeholderData: keepPreviousData,
   });
 }

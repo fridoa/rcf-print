@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { RekapPage } from "@/features/rekap";
@@ -115,36 +115,51 @@ describe("RekapPage", () => {
     expect(arg.sampai).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("mengirim rentang baru saat admin mengubah tanggal", async () => {
+  // Helper: buka popover kalender dan klik satu tanggal. day-picker v10
+  // memberi tiap sel data-day="YYYY-MM-DD" — jauh lebih deterministik
+  // daripada nama aksesibel (yang hanya berupa angka tanggal).
+  const klikTanggal = async (dataDay) => {
+    if (!screen.queryByRole("dialog", { name: /rentang tanggal/i })) {
+      await userEvent.click(
+        screen.getByRole("button", { name: /pilih rentang|–/ })
+      );
+    }
+    const sel = document.querySelector(`[data-day="${dataDay}"] button`);
+    if (!sel) {
+      throw new Error(`tanggal ${dataDay} tidak ada di kalender (mungkin bulan lain — navigasi dulu)`);
+    }
+    await userEvent.click(sel);
+  };
+
+  it("mengirim rentang baru saat admin memilih lewat kalender", async () => {
     await renderAdmin();
     await waitFor(() => expect(rekapApi.harian).toHaveBeenCalled());
 
-    const dari = screen.getByLabelText(/^dari$/i);
-    await userEvent.clear(dari);
-    await userEvent.type(dari, "2026-09-01");
+    // day-picker "smart range": klik di dalam rentang menggeser ujung
+    // terdekat. Default 1-28 Agu; klik 5 Agu -> {1..5}, klik 25 -> {1..25}.
+    await klikTanggal("2026-08-05");
+    await klikTanggal("2026-08-25");
 
-    await waitFor(() =>
-      expect(rekapApi.harian).toHaveBeenCalledWith(
-        expect.objectContaining({ dari: "2026-09-01" })
-      )
-    );
-  });
+    await waitFor(() => {
+      const terakhir = rekapApi.harian.mock.calls.at(-1)[0];
+      expect(terakhir).toMatchObject({ dari: "2026-08-01", sampai: "2026-08-25" });
+    });
+  }, 15000);
 
-  it("menampilkan peringatan dan tidak query saat rentang terbalik", async () => {
+  it("kalender range tidak bisa menghasilkan rentang terbalik", async () => {
     await renderAdmin();
     await waitFor(() => expect(rekapApi.harian).toHaveBeenCalled());
     const jumlahAwal = rekapApi.harian.mock.calls.length;
 
-    const dari = screen.getByLabelText(/^dari$/i);
-    await userEvent.clear(dari);
-    await userEvent.type(dari, "2026-12-31");
+    // Apapun urutan klik, from selalu <= to (smart range menggeser ujung
+    // terdekat, tidak pernah menghasilkan from > to).
+    await klikTanggal("2026-08-25");
+    await klikTanggal("2026-08-05");
 
-    expect(
-      await screen.findByText(/tidak boleh sebelum/i)
-    ).toBeInTheDocument();
-    // tidak ada query baru dengan rentang terbalik
-    expect(rekapApi.harian.mock.calls.length).toBe(jumlahAwal);
-  });
+    for (const call of rekapApi.harian.mock.calls) {
+      expect(call[0].dari <= call[0].sampai).toBe(true);
+    }
+  }, 15000);
 
   it("menampilkan keadaan kosong saat tidak ada data", async () => {
     rekapApi.harian.mockResolvedValue({

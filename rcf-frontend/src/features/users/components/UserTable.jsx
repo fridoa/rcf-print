@@ -1,4 +1,5 @@
 import { Button, TableSkeleton } from "@/shared/components/ui";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { ROLE_LABEL } from "@/shared/constants/roles";
 
 /**
@@ -26,11 +27,12 @@ export function UserTable({
   }
 
   const kosong = users.length === 0;
+  const isDesktop = useIsDesktop();
 
-  return (
-    <>
-      {/* Layar besar (md+): tabel. Layar kecil: daftar kartu di bawah. */}
-      <div className="hidden overflow-x-auto rounded-lg bg-white ring-1 ring-slate-200 md:block">
+  // Render SATU tampilan saja (bukan dua-duanya lalu sembunyikan via CSS).
+  if (isDesktop) {
+    return (
+      <div className="overflow-x-auto rounded-lg bg-white ring-1 ring-slate-200">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Daftar user RCF Print</caption>
 
@@ -114,54 +116,58 @@ export function UserTable({
           </tbody>
         </table>
       </div>
+    );
+  }
 
-      {/* Layar kecil (< md): daftar kartu. */}
-      {kosong ? (
-        <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200 md:hidden">
-          Belum ada user yang cocok.
-        </p>
-      ) : (
-      <ul className="space-y-3 md:hidden" aria-busy={isFetching || undefined}>
-        {users.map((user) => {
-          const iniSaya = String(user._id) === String(currentUserId);
-          return (
-            <li
-              key={user._id}
-              className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-800">
-                    {user.name}
-                    {iniSaya && (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-500">
-                        Anda
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-500">
-                    @{user.username} · {ROLE_LABEL[user.role] ?? user.role}
-                  </p>
-                  <p className="text-sm text-slate-500">{user.email}</p>
-                </div>
-                <StatusPill isActive={user.isActive} />
-              </div>
+  // Layar kecil (< md): daftar kartu.
+  if (kosong) {
+    return (
+      <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200">
+        Belum ada user yang cocok.
+      </p>
+    );
+  }
 
-              <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-                <UserActions
-                  user={user}
-                  iniSaya={iniSaya}
-                  onEdit={onEdit}
-                  onResetPassword={onResetPassword}
-                  onDelete={onDelete}
-                />
+  return (
+    <ul className="space-y-3" aria-busy={isFetching || undefined}>
+      {users.map((user) => {
+        const iniSaya = String(user._id) === String(currentUserId);
+        return (
+          <li
+            key={user._id}
+            className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-slate-800">
+                  {user.name}
+                  {iniSaya && (
+                    <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-500">
+                      Anda
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  @{user.username} · {ROLE_LABEL[user.role] ?? user.role}
+                </p>
+                <p className="text-sm text-slate-500">{user.email}</p>
               </div>
-            </li>
-          );
-        })}
-      </ul>
-      )}
-    </>
+              <StatusPill isActive={user.isActive} />
+            </div>
+
+            <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+              <UserActions
+                user={user}
+                iniSaya={iniSaya}
+                onEdit={onEdit}
+                onResetPassword={onResetPassword}
+                onDelete={onDelete}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

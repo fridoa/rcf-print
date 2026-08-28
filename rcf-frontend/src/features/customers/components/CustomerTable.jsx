@@ -1,4 +1,5 @@
 import { Button, TableSkeleton } from "@/shared/components/ui";
+import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { formatWhatsapp, whatsappLink } from "@/shared/lib/phone";
 
 /**
@@ -25,11 +26,12 @@ export function CustomerTable({
 
   const kosong = customers.length === 0;
   const jumlahKolom = 3 + (canManage ? 1 : 0);
+  const isDesktop = useIsDesktop();
 
-  return (
-    <>
-      {/* Layar besar (md+): tabel. Layar kecil: daftar kartu di bawah. */}
-      <div className="hidden overflow-x-auto rounded-lg bg-white ring-1 ring-slate-200 md:block">
+  // Render SATU tampilan saja (bukan dua-duanya lalu sembunyikan via CSS).
+  if (isDesktop) {
+    return (
+      <div className="overflow-x-auto rounded-lg bg-white ring-1 ring-slate-200">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Daftar pelanggan RCF Print</caption>
 
@@ -117,56 +119,60 @@ export function CustomerTable({
           </tbody>
         </table>
       </div>
+    );
+  }
 
-      {/* Layar kecil (< md): daftar kartu. */}
-      {kosong ? (
-        <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200 md:hidden">
-          Belum ada pelanggan yang cocok.
-        </p>
-      ) : (
-      <ul className="space-y-3 md:hidden" aria-busy={isFetching || undefined}>
-        {customers.map((customer) => (
-          <li
-            key={customer._id}
-            className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
+  // Layar kecil (< md): daftar kartu.
+  if (kosong) {
+    return (
+      <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200">
+        Belum ada pelanggan yang cocok.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-3" aria-busy={isFetching || undefined}>
+      {customers.map((customer) => (
+        <li
+          key={customer._id}
+          className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
+        >
+          <p className="font-medium text-slate-800">{customer.name}</p>
+          <a
+            href={whatsappLink(customer.whatsapp)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-0.5 inline-block text-sm text-brand-600 hover:underline"
           >
-            <p className="font-medium text-slate-800">{customer.name}</p>
-            <a
-              href={whatsappLink(customer.whatsapp)}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-0.5 inline-block text-sm text-brand-600 hover:underline"
-            >
-              {formatWhatsapp(customer.whatsapp)}
-            </a>
-            {customer.note && (
-              <p className="mt-2 text-sm text-slate-600">{customer.note}</p>
-            )}
+            {formatWhatsapp(customer.whatsapp)}
+          </a>
+          {customer.note && (
+            <p className="mt-2 text-sm text-slate-600">{customer.note}</p>
+          )}
 
-            {canManage && (
-              <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onEdit?.(customer)}
-                  aria-label={`Ubah ${customer.name}`}
-                >
-                  Ubah
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => onDelete?.(customer)}
-                  aria-label={`Hapus ${customer.name}`}
-                >
-                  Hapus
-                </Button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-      )}
-    </>
+          {canManage && (
+            <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onEdit?.(customer)}
+                aria-label={`Ubah ${customer.name}`}
+              >
+                Ubah
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => onDelete?.(customer)}
+                aria-label={`Hapus ${customer.name}`}
+              >
+                Hapus
+              </Button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

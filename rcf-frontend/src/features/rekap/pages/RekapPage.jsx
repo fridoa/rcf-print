@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  DateRangePickerField,
   InfiniteScroll,
   Pagination,
   Spinner,
   TableSkeleton,
-  TextField,
 } from "@/shared/components/ui";
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { formatRupiah, formatTanggal } from "@/shared/lib/format";
@@ -47,7 +47,7 @@ const defaultRange = () => {
 export function RekapPage() {
   const [range, setRange] = useState(defaultRange);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(10);
 
   // Kirim ke API hanya kalau rentangnya valid (dari <= sampai) supaya tidak
   // memancing 400 saat admin masih mengetik.
@@ -58,7 +58,8 @@ export function RekapPage() {
 
   const rentangTerbalik = range.dari && range.sampai && range.dari > range.sampai;
 
-  const { data, isLoading, isError, error } = useRekapHarian(params ?? {});
+  // null saat rentang terbalik; hook yang menolak query-nya (enabled:false).
+  const { data, isLoading, isError, error } = useRekapHarian(params);
 
   const baris = data?.baris ?? [];
   const total = data?.total;
@@ -105,27 +106,13 @@ export function RekapPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <TextField
-          label="Dari"
-          type="date"
-          value={range.dari}
-          max={range.sampai || undefined}
-          onChange={(e) => {
+        <DateRangePickerField
+          dari={range.dari}
+          sampai={range.sampai}
+          onChange={(r) => {
             setPage(1);
-            setRange((r) => ({ ...r, dari: e.target.value }));
+            setRange(r);
           }}
-          className="w-44"
-        />
-        <TextField
-          label="Sampai"
-          type="date"
-          value={range.sampai}
-          min={range.dari || undefined}
-          onChange={(e) => {
-            setPage(1);
-            setRange((r) => ({ ...r, sampai: e.target.value }));
-          }}
-          className="w-44"
         />
         {/* Indikator refetch ringan saat sudah ada data sebelumnya. */}
         {isLoading && baris.length > 0 && <Spinner label="Memuat rekap..." />}

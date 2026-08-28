@@ -10,7 +10,7 @@ const required = (key) => {
   return value;
 };
 
-const APP_ENVS = ["development", "test", "staging", "production"];
+const APP_ENVS = ["development", "autotest", "test", "staging", "production"];
 
 const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || "development";
 
@@ -25,10 +25,14 @@ const DATABASE_URL = required("DATABASE_URL");
  *
  * Tujuannya mencegah kecelakaan paling mahal — deploy staging/production
  * yang ternyata masih menunjuk database development, atau test suite
- * (yang menghapus data) berjalan di atas database production.
+ * (yang menghapus seluruh collection) berjalan di atas database dev/QA.
+ *
+ * autotest = database khusus `npm test`, isinya dihapus tiap test.
+ * test     = database QA, diisi manual, JANGAN dipakai test otomatis.
  */
 const DB_NAME_SUFFIX = {
   development: "_dev",
+  autotest: "_autotest",
   test: "_test",
   staging: "_staging",
   production: "", // tanpa suffix, mis. rcf_print
@@ -53,7 +57,7 @@ if (!dbName) {
 const expectedSuffix = DB_NAME_SUFFIX[APP_ENV];
 
 if (APP_ENV === "production") {
-  const salah = ["_dev", "_test", "_staging"].find((s) => dbName.endsWith(s));
+  const salah = ["_dev", "_autotest", "_test", "_staging"].find((s) => dbName.endsWith(s));
   if (salah) {
     throw new Error(
       `APP_ENV=production tapi database bernama "${dbName}" (berakhiran ${salah}). ` +
@@ -78,18 +82,71 @@ export const env = {
   JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1d",
 
-  EMAIL_SMTP_SERVICE_NAME: process.env.EMAIL_SMTP_SERVICE_NAME || "gmail",
+  EMAIL_SMTP_SERVICE_NAME: process.env.EMAIL_SMTP_SERVICE_NAME || "",
+  // Host/port untuk provider non-preset (Zoho). Kalau SERVICE_NAME diisi,
+  // nodemailer memakai preset-nya dan host/port diabaikan — jangan set dua-duanya.
+  EMAIL_SMTP_HOST: process.env.EMAIL_SMTP_HOST || "smtp.zoho.com",
+  EMAIL_SMTP_PORT: Number(process.env.EMAIL_SMTP_PORT) || 465,
   EMAIL_SMTP_USER: process.env.EMAIL_SMTP_USER || "",
   EMAIL_SMTP_PASS: process.env.EMAIL_SMTP_PASS || "",
   EMAIL_SMTP_FROM_NAME: process.env.EMAIL_SMTP_FROM_NAME || "RCF Print",
 
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
 
+  /**
+   * Origin tambahan yang boleh memanggil API, dipisah koma.
+   * FRONTEND_URL sudah otomatis diizinkan — ini untuk sisanya
+   * (domain www, preview deploy, staging).
+   */
+  CORS_ORIGINS: (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+
   OTP_EXPIRES_MINUTES: Number(process.env.OTP_EXPIRES_MINUTES) || 10,
   RESET_TOKEN_EXPIRES_MINUTES: Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 60,
+
+  /**
+   * === Rate limiting endpoint auth publik ===
+   *
+   * Limiter per-IP (express-rate-limit), dipasang HANYA di route auth
+   * publik (login, forgot-password, verify-otp, reset-password) — bukan
+   * global, karena endpoint internal sudah dilindungi token + role dan
+   * limiter global hanya bikin UX admin tersendat.
+   *
+   * Di-skip total di autotest supaya test suite tidak saling memblokir.
+   */
+  RATE_LIMIT_WINDOW_MINUTES: Number(process.env.RATE_LIMIT_WINDOW_MINUTES) || 15,
+  RATE_LIMIT_LOGIN_MAX: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20,
+  RATE_LIMIT_FORGOT_MAX: Number(process.env.RATE_LIMIT_FORGOT_MAX) || 3,
+  RATE_LIMIT_OTP_MAX: Number(process.env.RATE_LIMIT_OTP_MAX) || 10,
+  /** Batas permintaan forgot-password per EMAIL (bukan per IP) per jam. */
+  RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY: Number(
+    process.env.RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY
+  ) || 3,
+
+  /**
+   * ImageKit — penyimpanan file desain.
+   *
+   * SENGAJA tidak lewat required(): server harus tetap bisa boot (dan test
+   * jalan) tanpa kredensial ini. Yang menegakkan kelengkapannya adalah adapter
+   * storage saat endpoint upload benar-benar dipakai — jadi lupa mengisi env
+   * hanya mematikan fitur galeri, bukan seluruh API. Di autotest, adapter
+   * memakai implementasi palsu sehingga test tidak menyentuh jaringan.
+   */
+  IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY || "",
+  IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY || "",
+  IMAGEKIT_URL_ENDPOINT: process.env.IMAGEKIT_URL_ENDPOINT || "",
+  // Folder root di ImageKit tempat semua desain disimpan.
+  IMAGEKIT_FOLDER: process.env.IMAGEKIT_FOLDER || "/rcf-print/designs",
+
+  // Batas ukuran satu file desain (byte). Default 10 MB.
+  DESIGN_MAX_FILE_BYTES:
+    Number(process.env.DESIGN_MAX_FILE_BYTES) || 10 * 1024 * 1024,
 };
 
 export const isProduction = APP_ENV === "production";
 export const isStaging = APP_ENV === "staging";
+export const isAutotest = APP_ENV === "autotest";
 export const isTest = APP_ENV === "test";
 export const isDevelopment = APP_ENV === "development";

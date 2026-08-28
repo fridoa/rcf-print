@@ -1,0 +1,54 @@
+# Compose untuk build produksi.
+#
+#   docker compose -f docker-compose.prod.yml up --build -d
+#   → http://localhost  (nginx menyajikan FE dan mem-proxy /api/ ke backend)
+#
+# Berbeda dari docker-compose.yml: tidak ada bind mount, tidak ada HMR,
+# FE sudah jadi static file, backend jalan sebagai user non-root.
+
+name: rcf-print-prod
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: production
+    env_file:
+      - ./backend/.env.production
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      PORT: 3000
+    # Port TIDAK dipublish ke host: satu-satunya jalan masuk adalah nginx.
+    # Mengekspos 3000 langsung berarti API bisa diakses tanpa lewat proxy,
+    # melewati header dan rate limit apa pun yang dipasang di nginx nanti.
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    restart: always
+
+  frontend:
+    build:
+      context: ./rcf-frontend
+      target: production
+      args:
+        # Nilai ini di-inline ke bundle saat build. "/api/v1" berarti
+        # browser memanggil origin yang sama, lalu nginx meneruskan ke backend.
+        VITE_API_URL: /api/v1
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: always

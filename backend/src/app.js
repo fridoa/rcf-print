@@ -8,6 +8,13 @@ import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js
 
 const app = express();
 
+// Di belakang proxy (Vercel/nginx), req.ip harus diambil dari X-Forwarded-For
+// — kalau tidak, express-rate-limit melihat IP proxy untuk SEMUA request dan
+// melempar ERR_ERL_UNEXPECTED_X_FORWARDED_FOR. Nilai 1 = percaya satu hop
+// terdekat saja; jangan `true` (percaya seluruh rantai) karena client bisa
+// memalsukan header dan lolos dari rate limit.
+app.set("trust proxy", 1);
+
 // CORS dibatasi ke daftar origin di config/cors.js (FRONTEND_URL +
 // CORS_ORIGINS). Di dev/autotest localhost port apa pun tetap diizinkan.
 app.use(cors(corsOptions));

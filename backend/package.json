@@ -19,6 +19,7 @@
     "node": ">=20.19.0"
   },
   "dependencies": {
+    "@vercel/functions": "^3.9.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

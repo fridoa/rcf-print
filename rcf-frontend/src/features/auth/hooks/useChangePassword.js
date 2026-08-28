@@ -15,7 +15,7 @@ import { notify } from "@/shared/lib/toast";
  */
 export function useChangePassword() {
   return useMutation({
-    mutationFn: authApi.changePassword,
+    mutationFn: (vars) => authApi.changePassword(vars),
     onSuccess: () => notify.success("Password berhasil diubah."),
     onError: (err) => notify.apiError(err),
   });

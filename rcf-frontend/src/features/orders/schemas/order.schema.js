@@ -79,7 +79,10 @@ export const selesaikanOrderSchema = yup.object({
     .required("Total harga wajib diisi"),
   metode_bayar: yup
     .string()
-    .oneOf(METODE_BAYAR_LIST, "Metode bayar harus Cash atau Transfer")
+    // yup 1.7: oneOf menang atas required — sertakan "" di daftar supaya
+    // placeholder kosong terlempar ke required ("wajib dipilih"), bukan
+    // "harus Cash atau Transfer".
+    .oneOf(["", ...METODE_BAYAR_LIST], "Metode bayar harus Cash atau Transfer")
     .required("Metode bayar wajib dipilih"),
   catatan: yup.string().trim().max(300, "Catatan maksimal 300 karakter"),
 });

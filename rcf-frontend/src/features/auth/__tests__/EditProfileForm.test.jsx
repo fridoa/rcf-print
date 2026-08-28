@@ -156,6 +156,8 @@ describe("EditProfileForm — payload PATCH partial", () => {
 
     const nama = screen.getByLabelText(/^nama$/i);
     await userEvent.type(nama, " X");
+    // ... lalu dikembalikan ke nilai semula (judul test).
+    await userEvent.type(nama, "{backspace}{backspace}");
 
     const email = screen.getByLabelText(/^email$/i);
     await userEvent.clear(email);

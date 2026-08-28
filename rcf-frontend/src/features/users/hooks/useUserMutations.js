@@ -19,7 +19,7 @@ import { notify } from "@/shared/lib/toast";
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: userApi.create,
+    mutationFn: (vars) => userApi.create(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.all });
       notify.success("Pengguna baru ditambahkan.");
@@ -31,7 +31,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: userApi.update,
+    mutationFn: (vars) => userApi.update(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.all });
       notify.success("Data pengguna diperbarui.");
@@ -46,7 +46,7 @@ export function useUpdateUser() {
  */
 export function useResetUserPassword() {
   return useMutation({
-    mutationFn: userApi.resetPassword,
+    mutationFn: (vars) => userApi.resetPassword(vars),
     onSuccess: () => notify.success("Password pengguna direset."),
     onError: (err) => notify.apiError(err),
   });
@@ -55,7 +55,7 @@ export function useResetUserPassword() {
 export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: userApi.remove,
+    mutationFn: (vars) => userApi.remove(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.all });
       notify.success("Pengguna dihapus.");

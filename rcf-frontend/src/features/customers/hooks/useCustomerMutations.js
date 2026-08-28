@@ -22,7 +22,7 @@ export function useCreateCustomer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: customerApi.create,
+    mutationFn: (vars) => customerApi.create(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all });
       notify.success("Pelanggan baru ditambahkan.");
@@ -35,7 +35,7 @@ export function useUpdateCustomer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: customerApi.update,
+    mutationFn: (vars) => customerApi.update(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all });
       notify.success("Data pelanggan diperbarui.");
@@ -48,7 +48,7 @@ export function useDeleteCustomer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: customerApi.remove,
+    mutationFn: (vars) => customerApi.remove(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all });
       notify.success("Pelanggan dihapus.");

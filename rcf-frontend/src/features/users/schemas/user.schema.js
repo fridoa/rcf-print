@@ -36,8 +36,11 @@ const emailField = yup
 
 const roleField = yup
   .string()
-  .required("Role wajib diisi")
-  .oneOf(ROLE_LIST, "Role tidak dikenal");
+  // yup 1.7: oneOf menang atas required — string kosong harus diizinkan di
+  // daftar supaya saat placeholder "" terkirim, pesan yang muncul
+  // "Role wajib diisi" (required), bukan "Role tidak dikenal".
+  .oneOf(["", ...ROLE_LIST], "Role tidak dikenal")
+  .required("Role wajib diisi");
 
 /**
  * Skema form user, dipakai untuk tambah maupun ubah.

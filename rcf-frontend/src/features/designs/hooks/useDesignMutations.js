@@ -24,7 +24,7 @@ export function useUploadDesign() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: designApi.upload,
+    mutationFn: (vars) => designApi.upload(vars),
     onSuccess: (_data, variables) => {
       // Invalidate SEMUA halaman galeri pelanggan itu (prefix match), bukan
       // hanya satu halaman — kunci cache kini menyertakan page/limit.
@@ -46,7 +46,7 @@ export function useDeleteDesign() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: designApi.remove,
+    mutationFn: (vars) => designApi.remove(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: designKeys.all });
       notify.success("Desain dihapus.");

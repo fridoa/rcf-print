@@ -66,10 +66,51 @@ export const changePasswordSchema = yup.object({
     .string()
     .required("Password baru wajib diisi")
     .min(6, "Password baru minimal 6 karakter")
-    .notOneOf(
-      [yup.ref("oldPassword")],
-      "Password baru tidak boleh sama dengan password lama"
-    ),
+    // notOneOf tidak boleh dievaluasi saat password lama kosong — di yup 1.7
+    // notOneOf([ref]) menang atas required/min, jadi form kosong akan
+    // menampilkan "tidak boleh sama dengan password lama" (karena '' === '')
+    // alih-alih "wajib diisi". Guard .when(): aturan ini hanya aktif setelah
+    // password lama terisi.
+    .when("oldPassword", {
+      is: (lama) => !!lama,
+      then: (s) =>
+        s.notOneOf(
+          [yup.ref("oldPassword")],
+          "Password baru tidak boleh sama dengan password lama"
+        ),
+    }),
+  confirmPassword: yup
+    .string()
+    .required("Konfirmasi password wajib diisi")
+    .oneOf([yup.ref("newPassword")], "Konfirmasi password tidak sama"),
+});
+
+/**
+ * === Lupa katasandi ===
+ * Mirror dari backend/src/modules/auth/auth.validator.js.
+ */
+
+/** Langkah 1: minta email reset dikirim. */
+export const lupaPasswordSchema = yup.object({
+  email: yup
+    .string()
+    .required("Email wajib diisi")
+    .trim()
+    .lowercase()
+    .email("Format email tidak valid"),
+});
+
+/**
+ * Langkah 2 (dari link email): password baru.
+ * Tanpa confirmPassword — konfirmasi di sini hanyaUX, server tidak
+ * menerimanya; cukup field ketik ulang tidak sebanding risiko salah
+ * ketik yang tidak ketahuan.
+ */
+export const resetPasswordSchema = yup.object({
+  newPassword: yup
+    .string()
+    .required("Password baru wajib diisi")
+    .min(6, "Password baru minimal 6 karakter"),
   confirmPassword: yup
     .string()
     .required("Konfirmasi password wajib diisi")

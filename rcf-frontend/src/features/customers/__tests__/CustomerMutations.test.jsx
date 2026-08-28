@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { CustomerListPage } from "@/features/customers";
@@ -273,7 +273,9 @@ describe("CustomerListPage — hapus pelanggan", () => {
     await renderAdmin();
     await bukaKonfirmasiHapus();
 
-    expect(screen.getByText("Budi Santoso")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog")).getByText("Budi Santoso")
+    ).toBeInTheDocument();
   });
 
   it("menghapus setelah dikonfirmasi lalu memuat ulang daftar", async () => {

@@ -17,7 +17,7 @@ export function useLogin() {
   const { login } = useAuth();
 
   return useMutation({
-    mutationFn: authApi.login,
+    mutationFn: (vars) => authApi.login(vars),
     onSuccess: (data) => {
       login(data);
       notify.success(`Selamat datang, ${data?.user?.name ?? "kembali"}!`);

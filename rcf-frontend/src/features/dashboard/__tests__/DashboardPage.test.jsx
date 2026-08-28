@@ -86,7 +86,8 @@ describe("DashboardPage per role", () => {
     await renderAs(ROLES.DESIGNER);
 
     expect(await screen.findByText("Ringkasan desain hari ini.")).toBeInTheDocument();
-    expect(screen.getByText("Antri Desain")).toBeInTheDocument();
+    // Label yang sama tampil di StatTile DAN legenda donut — keduanya sah.
+    expect(screen.getAllByText("Antri Desain").length).toBeGreaterThan(0);
     // Tidak menampilkan kartu pendapatan admin.
     expect(screen.queryByText("Pendapatan hari ini")).not.toBeInTheDocument();
   });
@@ -95,7 +96,7 @@ describe("DashboardPage per role", () => {
     await renderAs(ROLES.PACKING);
 
     expect(await screen.findByText("Ringkasan packing hari ini.")).toBeInTheDocument();
-    expect(screen.getByText("Packing")).toBeInTheDocument();
-    expect(screen.getByText("Siap Diambil")).toBeInTheDocument();
+    expect(screen.getAllByText("Packing").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Siap Diambil").length).toBeGreaterThan(0);
   });
 });

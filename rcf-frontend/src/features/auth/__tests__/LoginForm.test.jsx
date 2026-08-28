@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LoginForm } from "@/features/auth";
 import { renderPlain } from "@/test/renderWithProviders";
+import { MemoryRouter } from "react-router-dom";
 
 describe("LoginForm", () => {
   it("menampilkan pesan wajib isi kalau form disubmit kosong", async () => {
@@ -153,7 +154,12 @@ describe("LoginForm — field controlled", () => {
   });
 
   it("tidak mengosongkan isian saat pesan error server muncul", async () => {
-    const { rerender } = renderPlain(<LoginForm onSubmit={vi.fn()} />);
+    const bungkus = (props) => (
+      <MemoryRouter initialEntries={["/"]}>
+        <LoginForm onSubmit={vi.fn()} {...props} />
+      </MemoryRouter>
+    );
+    const { rerender } = render(bungkus({}));
 
     await userEvent.type(screen.getByLabelText(/username atau email/i), "admin");
     await userEvent.type(screen.getByLabelText(/^password$/i), "salah");
@@ -161,11 +167,12 @@ describe("LoginForm — field controlled", () => {
     // Setelah 401, LoginPage merender ulang form dengan errorMessage terisi.
     // Form tidak di-unmount, jadi isian harus tetap ada — user cukup
     // memperbaiki passwordnya, tidak mengetik ulang username.
+    // rerender harus dengan pembungkus yang SAMA (MemoryRouter). Kalau
+    // LoginForm diberi telanjang, root tree berubah jenis dan React
+    // meng-unmount semuanya — isian hilang karena remount, bukan karena
+    // form-nya membersihkan state.
     rerender(
-      <LoginForm
-        onSubmit={vi.fn()}
-        errorMessage="Username/email atau password salah"
-      />
+      bungkus({ errorMessage: "Username/email atau password salah" })
     );
 
     expect(screen.getByLabelText(/username atau email/i)).toHaveValue("admin");

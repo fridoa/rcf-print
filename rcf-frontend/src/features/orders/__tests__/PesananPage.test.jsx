@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { PesananPage } from "@/features/orders";
@@ -241,7 +241,7 @@ describe("PesananPage — membuat order", () => {
       screen.getByLabelText(/^pelanggan$/i),
       "Budi"
     );
-    await userEvent.click(await screen.findByText("Budi Santoso"));
+    await userEvent.click(await within(screen.getByRole("dialog")).findByText("Budi Santoso"));
 
     // galeri termuat → pilih satu desain
     await userEvent.click(await screen.findByTitle("Logo depan"));
@@ -376,7 +376,7 @@ describe("PesananPage — membuat order", () => {
     await screen.findByText(/detail desain diisi tim desain/i);
 
     await userEvent.type(screen.getByLabelText(/^pelanggan$/i), "Budi");
-    await userEvent.click(await screen.findByText("Budi Santoso"));
+    await userEvent.click(await within(screen.getByRole("dialog")).findByText("Budi Santoso"));
     await screen.findByTitle("Logo depan"); // galeri termuat, tapi tidak dipilih
 
     await userEvent.type(screen.getByLabelText(/total qty/i), "24");

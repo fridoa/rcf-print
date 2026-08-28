@@ -106,7 +106,7 @@ describe("UserListPage — tambah user", () => {
     );
     await userEvent.type(screen.getByLabelText(/^password$/i), "rahasia123");
     await userEvent.selectOptions(
-      screen.getByLabelText(/^role$/i),
+      within(screen.getByRole("dialog")).getByLabelText(/^role$/i),
       ROLES.PRODUKSI
     );
     await userEvent.click(screen.getByRole("button", { name: /simpan user/i }));
@@ -137,7 +137,7 @@ describe("UserListPage — tambah user", () => {
     );
     await userEvent.type(screen.getByLabelText(/^password$/i), "rahasia123");
     await userEvent.selectOptions(
-      screen.getByLabelText(/^role$/i),
+      within(screen.getByRole("dialog")).getByLabelText(/^role$/i),
       ROLES.PACKING
     );
     await userEvent.click(screen.getByRole("button", { name: /simpan user/i }));
@@ -162,7 +162,7 @@ describe("UserListPage — tambah user", () => {
     await userEvent.type(screen.getByLabelText(/^username$/i), "budi");
     await userEvent.type(screen.getByLabelText(/^email$/i), "kembar@rcfprint.com");
     await userEvent.type(screen.getByLabelText(/^password$/i), "rahasia123");
-    await userEvent.selectOptions(screen.getByLabelText(/^role$/i), ROLES.PACKING);
+    await userEvent.selectOptions(within(screen.getByRole("dialog")).getByLabelText(/^role$/i), ROLES.PACKING);
     await userEvent.click(screen.getByRole("button", { name: /simpan user/i }));
 
     expect(
@@ -187,7 +187,7 @@ describe("UserListPage — ubah user", () => {
     await bukaFormUbah();
 
     await userEvent.selectOptions(
-      screen.getByLabelText(/^role$/i),
+      within(screen.getByRole("dialog")).getByLabelText(/^role$/i),
       ROLES.PRODUKSI
     );
     await userEvent.click(
@@ -333,6 +333,7 @@ describe("UserListPage — filter", () => {
   it("meneruskan filter role ke API", async () => {
     await renderAdmin();
 
+    // Filter "Role" di halaman (bukan yang di dialog — dialog tidak terbuka).
     await userEvent.selectOptions(
       screen.getByLabelText(/^role$/i),
       ROLES.DESIGNER

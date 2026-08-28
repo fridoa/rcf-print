@@ -17,7 +17,7 @@ export function useEditProfile() {
   const { setUser } = useAuth();
 
   return useMutation({
-    mutationFn: authApi.editProfile,
+    mutationFn: (vars) => authApi.editProfile(vars),
     onSuccess: (user) => {
       setUser(user);
       notify.success("Profil berhasil diperbarui.");

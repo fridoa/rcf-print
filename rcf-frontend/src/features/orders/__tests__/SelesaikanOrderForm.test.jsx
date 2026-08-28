@@ -37,9 +37,10 @@ describe("SelesaikanOrderForm", () => {
     );
 
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ total_harga: 350000, metode_bayar: "CASH" })
-      )
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({
+        total_harga: 350000,
+        metode_bayar: "CASH",
+      })
     );
   });
 
@@ -71,9 +72,10 @@ describe("SelesaikanOrderForm", () => {
     );
 
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ total_harga: 5000, metode_bayar: "TRANSFER" })
-      )
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({
+        total_harga: 5000,
+        metode_bayar: "TRANSFER",
+      })
     );
   });
 

@@ -22,7 +22,10 @@ function useInvalidatingMutation(mutationFn, pesanSukses) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn,
+    // Bungkus satu argumen: react-query 5 memanggil mutationFn dengan arg
+    // ke-2 (context {client, meta, mutationKey}) yang tidak boleh bocor ke
+    // lapisan api (dan mock test-nya).
+    mutationFn: (vars) => mutationFn(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
       if (pesanSukses) notify.success(pesanSukses);

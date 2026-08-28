@@ -41,9 +41,9 @@ describe("SelesaiDesainForm", () => {
     await userEvent.click(screen.getByRole("button", { name: /selesai desain/i }));
 
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ catatan: "pakai kertas transfer B" })
-      )
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({
+        catatan: "pakai kertas transfer B",
+      })
     );
   });
 });

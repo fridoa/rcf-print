@@ -124,59 +124,71 @@ const changePassword = async (userId, { oldPassword, newPassword }) => {
  */
 
 const lupaPassword = async ({ email }) => {
+  const normalizedEmail = (email || "").toLowerCase().trim();
+
   // +counter & window: keduanya select:false di model, wajib diminta eksplisit
   // — kalau tidak, guard per-email di bawah selalu membaca undefined dan
   // tidak pernah aktif.
-  const user = await UserModel.findOne({ email }).select(
+  const user = await UserModel.findOne({ email: normalizedEmail }).select(
     "+forgot_request_count +forgot_window_started_at"
   );
 
   // Email tidak terdaftar: tetap 200 supaya tidak bisa dipakai menebak
-  // alamat mana yang terdaftar. (UserModel.find tidak mengembalikan error,
-  // jadi diam-diam skip kirim email.)
-  if (user) {
-    // Batas per email per jam (bergulir): penyerang dari banyak IP tetap
-    // tidak bisa membombardir satu inbox. Respons tetap "sukses" generik —
-    // kalau 429 di sini, jumlah hit yang diketahui penyerang akan jadi
-    // orakel "email ini terdaftar".
-    const SEJAM = 60 * 60 * 1000;
-    const windowBaru =
-      !user.forgot_window_started_at ||
-      Date.now() - user.forgot_window_started_at.getTime() >= SEJAM;
-    const count = windowBaru ? 0 : user.forgot_request_count;
-
-    if (count >= env.RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY) {
-      return {
-        message: "Jika email terdaftar, instruksi reset sudah dikirim.",
-      };
-    }
-
-    user.forgot_request_count = count + 1;
-    user.forgot_window_started_at = new Date();
-
-    const otp = buatOtp();
-    const resetToken = buatResetToken();
-
-    user.otp_hash = hashSha256(otp);
-    user.otp_expires_at = expiredDalamMenit(env.OTP_EXPIRES_MINUTES);
-    user.reset_token_hash = hashSha256(resetToken);
-    user.reset_token_expires_at = expiredDalamMenit(
-      env.RESET_TOKEN_EXPIRES_MINUTES
+  // alamat mana yang terdaftar (anti user-enumeration).
+  if (!user) {
+    console.warn(
+      `[mail] forgot-password diminta untuk email yang TIDAK TERDAFTAR di database: "${normalizedEmail}"`
     );
-    await user.save();
+    return { message: "Jika email terdaftar, instruksi reset sudah dikirim." };
+  }
 
-    // WAJIB await: di Vercel serverless, function langsung mati setelah
-    // response dikirim — promise fire-and-forget tidak akan pernah selesai.
-    // Dibungkus try/catch supaya kegagalan SMTP tidak mengubah response
-    // (tetap 200 generik — anti user-enumeration).
-    try {
-      await kirimEmailResetPassword(user, otp, resetToken);
-    } catch (err) {
-      console.error(
-        `[mail] gagal kirim email reset ke ${user.email}:`,
-        err?.message ?? err
-      );
-    }
+  // Batas per email per jam (bergulir): penyerang dari banyak IP tetap
+  // tidak bisa membombardir satu inbox.
+  const SEJAM = 60 * 60 * 1000;
+  const windowBaru =
+    !user.forgot_window_started_at ||
+    Date.now() - user.forgot_window_started_at.getTime() >= SEJAM;
+  const count = windowBaru ? 0 : user.forgot_request_count;
+
+  if (count >= env.RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY) {
+    console.warn(
+      `[mail] batas rate limit forgot-password tercapai untuk ${user.email} (${count}/${env.RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY} per jam). Pengiriman email ditahan.`
+    );
+    return {
+      message: "Jika email terdaftar, instruksi reset sudah dikirim.",
+    };
+  }
+
+  user.forgot_request_count = count + 1;
+  user.forgot_window_started_at = windowBaru ? new Date() : user.forgot_window_started_at;
+
+  const otp = buatOtp();
+  const resetToken = buatResetToken();
+
+  user.otp_hash = hashSha256(otp);
+  user.otp_expires_at = expiredDalamMenit(env.OTP_EXPIRES_MINUTES);
+  user.reset_token_hash = hashSha256(resetToken);
+  user.reset_token_expires_at = expiredDalamMenit(
+    env.RESET_TOKEN_EXPIRES_MINUTES
+  );
+  await user.save();
+
+  console.log(
+    `[mail] memulai pengiriman email reset ke ${user.email} via SMTP ${env.EMAIL_SMTP_HOST}:${env.EMAIL_SMTP_PORT}...`
+  );
+
+  try {
+    await kirimEmailResetPassword(user, otp, resetToken);
+    console.log(`[mail] email reset password BERHASIL dikirim ke ${user.email}`);
+  } catch (err) {
+    console.error(
+      `[mail] GAGAL kirim email reset ke ${user.email}:`,
+      err?.message ?? err
+    );
+    throw createHttpError(
+      500,
+      `Gagal mengirim email reset: ${err?.message || "Masalah koneksi SMTP server"}`
+    );
   }
 
   return { message: "Jika email terdaftar, instruksi reset sudah dikirim." };

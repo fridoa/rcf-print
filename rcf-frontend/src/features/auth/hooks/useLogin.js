@@ -22,5 +22,8 @@ export function useLogin() {
       login(data);
       notify.success(`Selamat datang, ${data?.user?.name ?? "kembali"}!`);
     },
+    onError: (err) => {
+      notify.apiError(err, "Login gagal. Periksa kembali identifier dan password Anda.");
+    },
   });
 }

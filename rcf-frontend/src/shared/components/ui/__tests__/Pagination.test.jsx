@@ -15,6 +15,21 @@ describe("Pagination", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("sembunyi saat total data <= limit default (10) walau pemilih limit diberikan", () => {
+    const { container } = render(
+      <Pagination
+        page={1}
+        totalPages={1}
+        total={5}
+        limit={10}
+        onPageChange={vi.fn()}
+        onLimitChange={vi.fn()}
+      />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+
   it("menonaktifkan 'Sebelumnya' di halaman pertama", () => {
     render(<Pagination page={1} totalPages={3} onPageChange={vi.fn()} />);
 

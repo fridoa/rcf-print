@@ -39,12 +39,19 @@ export function Pagination({
   disabled = false,
 }) {
   const showLimit = typeof onLimitChange === "function";
+  const defaultLimit = limitOptions[0] ?? 10;
+
+  // Sembunyikan paginasi bila data sedikit (<= limit default 10) dan hanya 1 halaman
+  if (typeof total === "number" && total <= defaultLimit && totalPages <= 1) {
+    return null;
+  }
 
   // Tidak ada yang perlu ditampilkan: satu halaman & tanpa pemilih limit.
   if (totalPages <= 1 && !showLimit) return null;
 
   const bisaMundur = page > 1 && !disabled;
   const bisaMaju = page < totalPages && !disabled;
+
 
   return (
     <nav

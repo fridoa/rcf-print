@@ -162,7 +162,7 @@ export function AppLayout() {
             : "pointer-events-none opacity-0"
         )}
         aria-hidden={!drawerOpen}
-        inert={!drawerOpen ? "" : undefined}
+        inert={drawerOpen ? undefined : ""}
       >
         <button
           type="button"

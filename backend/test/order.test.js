@@ -561,4 +561,52 @@ describe("Order API", () => {
       expect(res.body.data[1].status_ke).toBe(STATUS.ANTRI_CETAK);
     });
   });
+
+  describe("PATCH /orders/:id (Update Order)", () => {
+    it("ADMIN bisa mengubah total_qty, catatan, dan deadline", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.DTF, total_qty: 10 });
+
+      const res = await sebagai(tokenAdmin).patch(`/${order._id}`, {
+        total_qty: 25,
+        catatan: "Catatan direvisi",
+        deadline: "2026-09-01T00:00:00.000Z",
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total_qty).toBe(25);
+      expect(res.body.data.catatan).toBe("Catatan direvisi");
+    });
+
+    it("menolak role non-admin untuk update dengan 403", async () => {
+      const order = await buatOrderApi();
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}`, {
+        total_qty: 99,
+      });
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe("DELETE /orders/:id (Hapus Order)", () => {
+    it("ADMIN bisa menghapus order beserta riwayat status logs", async () => {
+      const order = await buatOrderApi();
+
+      const res = await sebagai(tokenAdmin).delete(`/${order._id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.id).toBe(order._id.toString());
+
+      // Pastikan sudah tidak ada di DB
+      const checkOrder = await OrderModel.findById(order._id);
+      expect(checkOrder).toBeNull();
+
+      const checkLogs = await StatusLogModel.find({ order_id: order._id });
+      expect(checkLogs).toHaveLength(0);
+    });
+
+    it("menolak role non-admin untuk hapus dengan 403", async () => {
+      const order = await buatOrderApi();
+      const res = await sebagai(tokenDesigner).delete(`/${order._id}`);
+      expect(res.status).toBe(403);
+    });
+  });
 });
+

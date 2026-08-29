@@ -1,6 +1,7 @@
 import orderService from "./order.service.js";
 import {
   createOrderSchema,
+  updateOrderSchema,
   listOrderQuerySchema,
   majukanStatusSchema,
   selesaikanOrderSchema,
@@ -141,13 +142,52 @@ const koreksi = async (req, res, next) => {
   }
 };
 
+const update = async (req, res, next) => {
+  try {
+    const payload = await updateOrderSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    const order = await orderService.update(
+      req.params.id,
+      req.user,
+      payload
+    );
+
+    res.json({
+      success: true,
+      message: "Data order berhasil diperbarui",
+      data: order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const remove = async (req, res, next) => {
+  try {
+    const result = await orderService.remove(req.params.id);
+    res.json({
+      success: true,
+      message: result.message,
+      data: { id: result.id },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   list,
   detail,
   riwayat,
   statistik,
   create,
+  update,
+  remove,
   majukanStatus,
   selesaikan,
   koreksi,
 };
+

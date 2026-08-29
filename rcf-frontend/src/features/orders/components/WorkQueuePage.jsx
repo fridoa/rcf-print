@@ -10,8 +10,10 @@ import {
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { OrderTable } from "./OrderTable";
+import { OrderReadyWhatsappDialog } from "./OrderReadyWhatsappDialog";
 import { useOrders, useInfiniteOrders } from "../hooks/useOrders";
 import { useMajukanStatus } from "../hooks/useOrderMutations";
+import { STATUS } from "../constants/order.constants";
 
 /**
  * Kerangka layar antrian kerja satu peran (Cetak, Polyflex, Packing).
@@ -95,6 +97,8 @@ export function WorkQueuePage({
   // Order yang menunggu konfirmasi maju. null = tidak ada dialog terbuka.
   // Konfirmasi dulu supaya aksi tak sengaja "kepencet" tidak langsung jalan.
   const [konfirmasi, setKonfirmasi] = useState(null);
+  // Order yang baru saja berubah menjadi READY (untuk dialog WhatsApp).
+  const [orderSiapReady, setOrderSiapReady] = useState(null);
 
   const mintaKonfirmasi = (order) => {
     setBarisError(null);
@@ -108,7 +112,13 @@ export function WorkQueuePage({
     majukan.mutate(
       { id: order._id },
       {
-        onSuccess: () => setKonfirmasi(null),
+        onSuccess: (data) => {
+          setKonfirmasi(null);
+          // Jika transisi dari antrian PACKING atau status baru jadi READY
+          if (data?.status === STATUS.READY || status === STATUS.PACKING) {
+            setOrderSiapReady(data?.kode_order ? data : order);
+          }
+        },
         onError: (err) =>
           setBarisError({ id: order._id, message: err.message }),
       }
@@ -205,6 +215,13 @@ export function WorkQueuePage({
         onConfirm={prosesMaju}
         onCancel={() => setKonfirmasi(null)}
       />
+
+      <OrderReadyWhatsappDialog
+        open={Boolean(orderSiapReady)}
+        order={orderSiapReady}
+        onClose={() => setOrderSiapReady(null)}
+      />
     </section>
   );
 }
+

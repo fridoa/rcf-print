@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatWhatsapp, whatsappLink } from "@/shared/lib/phone";
+import {
+  formatWhatsapp,
+  whatsappLink,
+  createReadyWhatsappMessage,
+} from "@/shared/lib/phone";
 
 describe("formatWhatsapp", () => {
   it("mengubah format 62 menjadi 0 dan memberi tanda hubung", () => {
@@ -28,4 +32,26 @@ describe("whatsappLink", () => {
       "https://wa.me/6281234567890"
     );
   });
+
+  it("menambahkan parameter text query saat diberikan", () => {
+    const link = whatsappLink("6281234567890", "Halo Kak Budi");
+    expect(link).toBe("https://wa.me/6281234567890?text=Halo%20Kak%20Budi");
+  });
 });
+
+describe("createReadyWhatsappMessage", () => {
+  it("membuat template pesan siap ambil dengan detail order yang benar", () => {
+    const pesan = createReadyWhatsappMessage({
+      kode_order: "DTF/260829/001",
+      jenis: "DTF",
+      total_qty: 50,
+      customer_id: { name: "Budi Santoso", whatsapp: "6281234567890" },
+    });
+
+    expect(pesan).toContain("Budi Santoso");
+    expect(pesan).toContain("DTF/260829/001");
+    expect(pesan).toContain("50 pcs");
+    expect(pesan).toContain("SIAP DIAMBIL");
+  });
+});
+

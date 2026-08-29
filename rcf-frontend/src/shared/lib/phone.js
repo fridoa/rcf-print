@@ -15,8 +15,26 @@ export const formatWhatsapp = (nomor) => {
 };
 
 /** Link chat WhatsApp; nomor sudah format 62 dari backend. */
-export const whatsappLink = (nomor) =>
-  `https://wa.me/${String(nomor ?? "").replace(/\D/g, "")}`;
+export const whatsappLink = (nomor, text) => {
+  const digits = String(nomor ?? "").replace(/\D/g, "");
+  if (!digits) return "#";
+  if (text) {
+    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+  }
+  return `https://wa.me/${digits}`;
+};
+
+/** Template pesan WhatsApp otomatis saat order berstatus READY (Siap Diambil). */
+export const createReadyWhatsappMessage = (order) => {
+  const customer = order?.customer_id || order?.customer;
+  const customerName =
+    typeof customer === "object" ? customer?.name : customer || "Pelanggan";
+  const kodeOrder = order?.kode_order || "-";
+  const jenis = order?.jenis || "DTF";
+  const qty = order?.total_qty ? `${order.total_qty} pcs` : "-";
+
+  return `Halo kak *${customerName}*,\n\nPesanan Anda di *RCF Print* sudah selesai diproduksi dan *SIAP DIAMBIL*. \n\n*Detail Pesanan:*\n• No. Order: *${kodeOrder}*\n• Jenis: *${jenis}*\n• Total Qty: *${qty}*\n\nSilakan ambil pesanan Anda di kasir RCF Print dengan menunjukkan nomor order ini ya. Terima kasih!`;
+};
 
 /**
  * Pola nomor sah setelah dinormalisasi — mirror backend/src/utils/phone.js.

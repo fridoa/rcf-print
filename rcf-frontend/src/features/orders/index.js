@@ -27,8 +27,11 @@ export {
 } from "./hooks/useOrders";
 export {
   useCreateOrder,
+  useUpdateOrder,
+  useDeleteOrder,
   useMajukanStatus,
   useSelesaikanOrder,
   useKoreksiStatus,
 } from "./hooks/useOrderMutations";
 export * from "./constants/order.constants";
+

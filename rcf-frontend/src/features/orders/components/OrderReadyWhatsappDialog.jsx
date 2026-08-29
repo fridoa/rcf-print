@@ -79,7 +79,7 @@ export function OrderReadyWhatsappDialog({ open, order, onClose }) {
         {/* Tombol Aksi */}
         <div className="mt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
-            Nanti Saja / Tutup
+            Nanti Saja
           </Button>
 
           {customerPhone ? (

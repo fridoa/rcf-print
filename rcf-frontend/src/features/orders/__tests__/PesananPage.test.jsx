@@ -30,11 +30,14 @@ vi.mock("@/features/orders/api/order.api", () => ({
     detail: vi.fn(),
     riwayat: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
     majukanStatus: vi.fn(),
     selesaikan: vi.fn(),
     koreksi: vi.fn(),
   },
 }));
+
 
 vi.mock("@/features/customers/api/customer.api", () => ({
   customerApi: {
@@ -193,10 +196,15 @@ describe("PesananPage — menyelesaikan order READY", () => {
     expect(orderApi.list.mock.calls.length).toBeGreaterThan(1);
   });
 
-  it("menampilkan dialog notifikasi WhatsApp saat tombol Kabari WA diklik pada order READY", async () => {
+  it("menampilkan dialog notifikasi WhatsApp saat tombol Kabari WhatsApp diklik pada order READY", async () => {
     await renderAdmin();
 
-    const tombolWa = screen.getByRole("button", { name: /kabari wa/i });
+    const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+    await userEvent.click(menuAksi);
+
+    const tombolWa = screen.getByRole("menuitem", {
+      name: /kabari whatsapp/i,
+    });
     expect(tombolWa).toBeInTheDocument();
 
     await userEvent.click(tombolWa);
@@ -209,6 +217,7 @@ describe("PesananPage — menyelesaikan order READY", () => {
       expect.stringContaining("https://wa.me/6281234567890")
     );
   });
+
 
   it("menampilkan pesan 409 dan dialog tetap terbuka", async () => {
     orderApi.selesaikan.mockRejectedValue({
@@ -504,9 +513,9 @@ describe("PesananPage — detail & tracking", () => {
     await renderAdmin();
 
     // buka detail untuk baris pertama (order READY)
-    await userEvent.click(
-      screen.getAllByRole("button", { name: /^detail$/i })[0]
-    );
+    const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+    await userEvent.click(menuAksi);
+    await userEvent.click(screen.getByRole("menuitem", { name: /detail order/i }));
 
     // ringkasan + timeline muncul
     expect(await screen.findByText(/riwayat proses/i)).toBeInTheDocument();
@@ -518,10 +527,10 @@ describe("PesananPage — detail & tracking", () => {
     expect(orderApi.riwayat).toHaveBeenCalledWith("o1");
   });
 
-  it("menampilkan tombol Detail di setiap baris", async () => {
+  it("menampilkan tombol menu aksi di setiap baris", async () => {
     await renderAdmin();
     expect(
-      screen.getAllByRole("button", { name: /^detail$/i })
+      screen.getAllByRole("button", { name: /menu aksi/i })
     ).toHaveLength(2);
   });
 });
@@ -534,20 +543,21 @@ describe("PesananPage — koreksi status", () => {
     customerApi.list.mockResolvedValue(daftar([BUDI]));
   });
 
-  it("menampilkan tombol Koreksi di setiap baris", async () => {
+  it("menampilkan tombol menu aksi di setiap baris", async () => {
     await renderAdmin();
 
-    const tombol = screen.getAllByRole("button", { name: /^koreksi$/i });
-    // dua order -> dua tombol Koreksi
+    const tombol = screen.getAllByRole("button", { name: /menu aksi/i });
     expect(tombol).toHaveLength(2);
   });
 
   it("membatasi opsi status ke alur jenis order dan membuang status sekarang", async () => {
     await renderAdmin();
 
-    // buka koreksi untuk order READY (baris pertama)
+    // buka koreksi untuk order READY (baris pertama) lewat menu aksi
+    const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+    await userEvent.click(menuAksi);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /^koreksi$/i })[0]
+      screen.getByRole("menuitem", { name: /koreksi status/i })
     );
     await screen.findByLabelText(/status tujuan/i);
 
@@ -573,8 +583,10 @@ describe("PesananPage — koreksi status", () => {
 
     await renderAdmin();
 
+    const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+    await userEvent.click(menuAksi);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /^koreksi$/i })[0]
+      screen.getByRole("menuitem", { name: /koreksi status/i })
     );
     await screen.findByLabelText(/status tujuan/i);
 
@@ -604,8 +616,10 @@ describe("PesananPage — koreksi status", () => {
   it("wajib mengisi alasan sebelum submit koreksi", async () => {
     await renderAdmin();
 
+    const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+    await userEvent.click(menuAksi);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /^koreksi$/i })[0]
+      screen.getByRole("menuitem", { name: /koreksi status/i })
     );
     await screen.findByLabelText(/status tujuan/i);
 
@@ -622,4 +636,69 @@ describe("PesananPage — koreksi status", () => {
     ).toBeInTheDocument();
     expect(orderApi.koreksi).not.toHaveBeenCalled();
   });
+
+  describe("Edit dan Hapus Order", () => {
+    it("membuka modal edit dengan data terisi dan memanggil orderApi.update saat disimpan", async () => {
+      orderApi.update.mockResolvedValue({ ...ORDER_READY, total_qty: 99 });
+
+      await renderAdmin();
+
+      const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+      await userEvent.click(menuAksi);
+      await userEvent.click(
+        screen.getByRole("menuitem", { name: /edit order/i })
+      );
+
+      // Judul modal edit muncul
+      expect(
+        await screen.findByText(`Edit Order ${ORDER_READY.kode_order}`)
+      ).toBeInTheDocument();
+
+      // Ubah total qty
+      const inputQty = screen.getByLabelText(/total qty/i);
+      await userEvent.clear(inputQty);
+      await userEvent.type(inputQty, "99");
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /simpan perubahan/i })
+      );
+
+      await waitFor(() =>
+        expect(orderApi.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "o1",
+            total_qty: 99,
+          })
+        )
+      );
+    });
+
+    it("membuka dialog konfirmasi dan memanggil orderApi.remove saat order dihapus", async () => {
+      orderApi.remove.mockResolvedValue({ id: "o1" });
+
+      await renderAdmin();
+
+      const menuAksi = screen.getAllByRole("button", { name: /menu aksi/i })[0];
+      await userEvent.click(menuAksi);
+      await userEvent.click(
+        screen.getByRole("menuitem", { name: /hapus order/i })
+      );
+
+      // ConfirmDialog muncul
+      expect(
+        await screen.findByText(/apakah anda yakin ingin menghapus order/i)
+      ).toBeInTheDocument();
+
+      // Klik tombol konfirmasi di dialog
+      await userEvent.click(
+        screen.getByRole("button", { name: /^hapus order$/i })
+      );
+
+      await waitFor(() =>
+        expect(orderApi.remove).toHaveBeenCalledWith("o1")
+      );
+    });
+  });
 });
+
+

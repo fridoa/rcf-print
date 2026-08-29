@@ -63,3 +63,14 @@ export function useSelesaikanOrder() {
 export function useKoreksiStatus() {
   return useInvalidatingMutation(orderApi.koreksi, "Status berhasil dikoreksi.");
 }
+
+/** Ubah data order (ADMIN). */
+export function useUpdateOrder() {
+  return useInvalidatingMutation(orderApi.update, "Data order berhasil diperbarui.");
+}
+
+/** Hapus order (ADMIN). */
+export function useDeleteOrder() {
+  return useInvalidatingMutation(orderApi.remove, "Order berhasil dihapus.");
+}
+

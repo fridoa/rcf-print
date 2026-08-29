@@ -193,6 +193,23 @@ describe("PesananPage — menyelesaikan order READY", () => {
     expect(orderApi.list.mock.calls.length).toBeGreaterThan(1);
   });
 
+  it("menampilkan dialog notifikasi WhatsApp saat tombol Kabari WA diklik pada order READY", async () => {
+    await renderAdmin();
+
+    const tombolWa = screen.getByRole("button", { name: /kabari wa/i });
+    expect(tombolWa).toBeInTheDocument();
+
+    await userEvent.click(tombolWa);
+
+    expect(await screen.findByText(/order siap diambil!/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /kirim pesan whatsapp/i })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining("https://wa.me/6281234567890")
+    );
+  });
+
   it("menampilkan pesan 409 dan dialog tetap terbuka", async () => {
     orderApi.selesaikan.mockRejectedValue({
       status: 409,

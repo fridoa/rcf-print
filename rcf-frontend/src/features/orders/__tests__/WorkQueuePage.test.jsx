@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CetakPage } from "@/features/orders";
+import { CetakPage, PackingPage } from "@/features/orders";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { ROLES } from "@/shared/constants/roles";
 
@@ -121,4 +121,51 @@ describe("WorkQueuePage — konfirmasi maju status", () => {
     );
     expect(orderApi.majukanStatus).not.toHaveBeenCalled();
   });
+
+  it("menampilkan dialog notifikasi WhatsApp saat order di antrian packing ditandai siap", async () => {
+    const ORDER_PACKING = {
+      ...ORDER,
+      _id: "o-pack-1",
+      kode_order: "DTF/220826/002",
+      status: "PACKING",
+    };
+
+    localStorage.setItem("rcf.token", "tok-123");
+    authApi.me.mockResolvedValue({
+      _id: "u10",
+      name: "Packer",
+      role: ROLES.PACKING ?? "PACKING",
+    });
+    orderApi.list.mockResolvedValue(daftar([ORDER_PACKING]));
+    orderApi.majukanStatus.mockResolvedValue({
+      ...ORDER_PACKING,
+      status: "READY",
+    });
+
+    renderWithProviders(<PackingPage />, { routes: ["/packing"] });
+    await screen.findByText("DTF/220826/002");
+
+    // Klik tombol Tandai Siap di tabel
+    await userEvent.click(
+      screen.getByRole("button", { name: /tandai siap/i })
+    );
+
+    // Konfirmasi di dialog
+    const tombolKonfirmasi = screen.getAllByRole("button", {
+      name: /tandai siap/i,
+    });
+    await userEvent.click(tombolKonfirmasi[tombolKonfirmasi.length - 1]);
+
+    // Dialog WhatsApp muncul
+    expect(
+      await screen.findByText(/order siap diambil!/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /kirim pesan whatsapp/i })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining("https://wa.me/6281234567890")
+    );
+  });
 });
+

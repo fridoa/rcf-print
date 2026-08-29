@@ -14,6 +14,7 @@ export { StatusBadge } from "./components/StatusBadge";
 export { KoreksiStatusForm } from "./components/KoreksiStatusForm";
 export { OrderTimeline } from "./components/OrderTimeline";
 export { OrderDetailDialog } from "./components/OrderDetailDialog";
+export { OrderReadyWhatsappDialog } from "./components/OrderReadyWhatsappDialog";
 
 export { orderApi } from "./api/order.api";
 export {

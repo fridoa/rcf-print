@@ -502,13 +502,91 @@ const statistik = async () => {
   };
 };
 
+/**
+ * Update data order (ADMIN).
+ *
+ * Mengubah data order (jenis, customer_id, design_ids, total_qty, deadline, catatan, dll).
+ */
+const update = async (id, aktor, payload) => {
+  const order = await OrderModel.findById(id);
+  if (!order) {
+    throw createHttpError(404, "Order tidak ditemukan");
+  }
+
+  const resolvedCustomerId =
+    payload.customer_id ?? order.customer_id?.toString();
+
+  if (payload.customer_id && payload.customer_id !== order.customer_id?.toString()) {
+    const customer = await CustomerModel.findById(payload.customer_id);
+    if (!customer) {
+      throw createHttpError(404, "Pelanggan tidak ditemukan");
+    }
+    order.customer_id = customer._id;
+  }
+
+  if (payload.design_ids) {
+    const validDesignIds = await designService.validateMilikCustomer(
+      payload.design_ids,
+      resolvedCustomerId
+    );
+    order.design_ids = validDesignIds;
+    order.file_count = validDesignIds.length;
+  }
+
+  if (payload.jenis) {
+    if (!ALUR[payload.jenis].includes(order.status)) {
+      throw createHttpError(
+        400,
+        `Status ${order.status} tidak kompatibel dengan jenis sablon ${payload.jenis}`
+      );
+    }
+    order.jenis = payload.jenis;
+  }
+
+  if (payload.total_qty !== undefined) order.total_qty = payload.total_qty;
+  if (payload.deadline !== undefined) order.deadline = payload.deadline;
+  if (payload.catatan !== undefined) order.catatan = payload.catatan;
+  if (payload.total_harga !== undefined) order.total_harga = payload.total_harga;
+  if (payload.metode_bayar !== undefined) order.metode_bayar = payload.metode_bayar;
+
+  await order.save();
+
+  await StatusLogModel.create({
+    order_id: order._id,
+    status_dari: order.status,
+    status_ke: order.status,
+    user_id: aktor.id,
+    catatan: "Data order diperbarui oleh Admin",
+  });
+
+  return getById(order._id);
+};
+
+/**
+ * Hapus order beserta status logs (ADMIN).
+ */
+const remove = async (id) => {
+  const order = await OrderModel.findById(id);
+  if (!order) {
+    throw createHttpError(404, "Order tidak ditemukan");
+  }
+
+  await StatusLogModel.deleteMany({ order_id: id });
+  await OrderModel.findByIdAndDelete(id);
+
+  return { id, message: `Order ${order.kode_order} berhasil dihapus` };
+};
+
 export default {
   create,
   list,
   getById,
+  update,
+  remove,
   majukanStatus,
   selesaikan,
   koreksiStatus,
   getRiwayat,
   statistik,
 };
+

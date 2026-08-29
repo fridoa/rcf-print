@@ -44,4 +44,11 @@ router.patch("/:id/selesai", authorize(ROLES.ADMIN), orderController.selesaikan)
 /** Koreksi status manual (mundur/lompat): hanya ADMIN. */
 router.patch("/:id/koreksi", authorize(ROLES.ADMIN), orderController.koreksi);
 
+/** Ubah data order: hanya ADMIN. */
+router.patch("/:id", authorize(ROLES.ADMIN), orderController.update);
+
+/** Hapus order: hanya ADMIN. */
+router.delete("/:id", authorize(ROLES.ADMIN), orderController.remove);
+
 export default router;
+

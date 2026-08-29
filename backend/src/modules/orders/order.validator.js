@@ -81,6 +81,38 @@ export const createOrderSchema = Yup.object({
 );
 
 /**
+ * PATCH /orders/:id — ubah data order (ADMIN).
+ */
+export const updateOrderSchema = Yup.object({
+  customer_id: Yup.string().trim(),
+  jenis: Yup.string().oneOf(JENIS_LIST, "Jenis harus DTF atau POLYFLEX"),
+  design_ids: Yup.array()
+    .transform((value, original) => {
+      if (original === undefined || original === "") return undefined;
+      return Array.isArray(original) ? original : [original];
+    })
+    .of(Yup.string().trim().required())
+    .min(1, "Pilih minimal satu desain"),
+  total_qty: Yup.number()
+    .transform(kosongJadiUndefined)
+    .integer("total_qty harus bilangan bulat")
+    .min(1, "total_qty minimal 1"),
+  deadline: Yup.date()
+    .transform(kosongJadiUndefined)
+    .typeError("deadline harus tanggal yang valid")
+    .nullable(),
+  catatan: Yup.string().trim().max(500, "Catatan maksimal 500 karakter"),
+  total_harga: Yup.number()
+    .transform(kosongJadiUndefined)
+    .min(0, "total_harga tidak boleh negatif")
+    .nullable(),
+  metode_bayar: Yup.string()
+    .oneOf(METODE_BAYAR_LIST, "Metode bayar harus CASH atau TRANSFER")
+    .nullable(),
+});
+
+
+/**
  * PATCH /orders/:id/status — majukan satu langkah.
  *
  * Sejak file_count & total_qty diisi saat order dibuat (dari design_ids &

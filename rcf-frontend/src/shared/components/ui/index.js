@@ -16,3 +16,9 @@ export { Calendar } from "./Calendar";
 export { DateRangePickerField } from "./DateRangePickerField";
 export { Avatar } from "./Avatar";
 export { Collapse } from "./Collapse";
+export {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuDivider,
+} from "./DropdownMenu";
+

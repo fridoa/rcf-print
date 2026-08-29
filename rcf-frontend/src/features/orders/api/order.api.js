@@ -85,4 +85,17 @@ export const orderApi = {
     const body = await apiClient.patch(`/orders/${id}/koreksi`, payload);
     return body.data;
   },
+
+  /** PATCH /orders/:id -> ubah data order (ADMIN) */
+  async update({ id, ...payload }) {
+    const body = await apiClient.patch(`/orders/${id}`, payload);
+    return body.data;
+  },
+
+  /** DELETE /orders/:id -> hapus order (ADMIN) */
+  async remove(id) {
+    const body = await apiClient.delete(`/orders/${id}`);
+    return body.data;
+  },
 };
+

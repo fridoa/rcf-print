@@ -72,7 +72,7 @@ export const corsOptions = {
   credentials: true,
 
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "sentry-trace", "baggage"],
 
   // Cache hasil preflight 10 menit supaya tidak ada OPTIONS di depan
   // setiap request. Chrome membatasi maksimum 2 jam.

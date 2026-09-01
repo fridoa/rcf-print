@@ -66,8 +66,9 @@ export const orderApi = {
 
   /**
    * PATCH /orders/:id/status -> majukan satu langkah.
-   * payload opsional: { catatan }. file_count/total_qty tidak lagi dikirim di
-   * transisi mana pun — keduanya ditetapkan saat order dibuat.
+   * payload: { catatan? } untuk transisi produksi/packing, dan
+   * { file_count, total_qty, catatan? } saat designer menandai desain selesai
+   * (backend mewajibkan kedua angka untuk transisi keluar ANTRI_DESAIN).
    */
   async majukanStatus({ id, ...payload }) {
     const body = await apiClient.patch(`/orders/${id}/status`, payload);

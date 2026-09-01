@@ -10,7 +10,17 @@ import {
 
 const list = async (req, res, next) => {
   try {
-    const query = await listOrderQuerySchema.validate(req.query, {
+    // FE mengirim status berulang (?status=ANTRI_CETAK&status=PACKING) untuk
+    // layar produksi; express menampungnya sebagai array. Schema memisahkan
+    // status (tunggal) dan statusIn (banyak), jadi bentuk array dipindahkan ke
+    // statusIn di sini — kalau tidak, Yup menolaknya sebagai string invalid.
+    const rawQuery = { ...req.query };
+    if (Array.isArray(rawQuery.status)) {
+      rawQuery.statusIn = rawQuery.status;
+      delete rawQuery.status;
+    }
+
+    const query = await listOrderQuerySchema.validate(rawQuery, {
       abortEarly: false,
       stripUnknown: true,
     });

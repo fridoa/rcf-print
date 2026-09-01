@@ -80,6 +80,7 @@ export const env = {
   DATABASE_NAME: dbName,
 
   JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "",
+  SENTRY_DSN: process.env.SENTRY_DSN || "",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1d",
 
   EMAIL_SMTP_SERVICE_NAME: process.env.EMAIL_SMTP_SERVICE_NAME || "",
@@ -124,25 +125,6 @@ export const env = {
   RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY: Number(
     process.env.RATE_LIMIT_FORGOT_PER_EMAIL_HOURLY
   ) || 3,
-
-  /**
-   * ImageKit — penyimpanan file desain.
-   *
-   * SENGAJA tidak lewat required(): server harus tetap bisa boot (dan test
-   * jalan) tanpa kredensial ini. Yang menegakkan kelengkapannya adalah adapter
-   * storage saat endpoint upload benar-benar dipakai — jadi lupa mengisi env
-   * hanya mematikan fitur galeri, bukan seluruh API. Di autotest, adapter
-   * memakai implementasi palsu sehingga test tidak menyentuh jaringan.
-   */
-  IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY || "",
-  IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY || "",
-  IMAGEKIT_URL_ENDPOINT: process.env.IMAGEKIT_URL_ENDPOINT || "",
-  // Folder root di ImageKit tempat semua desain disimpan.
-  IMAGEKIT_FOLDER: process.env.IMAGEKIT_FOLDER || "/rcf-print/designs",
-
-  // Batas ukuran satu file desain (byte). Default 10 MB.
-  DESIGN_MAX_FILE_BYTES:
-    Number(process.env.DESIGN_MAX_FILE_BYTES) || 10 * 1024 * 1024,
 };
 
 export const isProduction = APP_ENV === "production";

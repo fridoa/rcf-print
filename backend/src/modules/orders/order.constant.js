@@ -68,7 +68,7 @@ export const ALUR = {
  * ADMIN tidak dicantumkan di sini karena ADMIN punya kuasa lintas transisi
  * (menyelesaikan order dan koreksi mundur) yang ditangani terpisah di service.
  *
- * - DESIGNER  : ANTRI_DESAIN → langkah produksi (isi file_count & total_qty)
+ * - DESIGNER  : ANTRI_DESAIN → langkah produksi (menandai desain selesai)
  * - PRODUKSI  : langkah produksi → PACKING (selesai cetak/cutting)
  * - PACKING   : PACKING → READY (selesai packing)
  *

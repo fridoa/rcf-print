@@ -41,8 +41,9 @@ export function useCreateOrder() {
 
 /**
  * Majukan status satu langkah.
- * Dipakai semua layar kerja. Semua transisi kini cukup { id } (+ catatan
- * opsional); file_count/total_qty sudah ditetapkan saat order dibuat.
+ * Dipakai semua layar kerja. Transisi produksi/packing cukup { id } (+ catatan
+ * opsional); transisi "selesai desain" menyertakan file_count & total_qty yang
+ * ditentukan designer.
  */
 export function useMajukanStatus() {
   return useInvalidatingMutation(

@@ -1,4 +1,5 @@
 import express from "express";
+import * as Sentry from "@sentry/node";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { connectDatabase } from "./config/database.js";
@@ -41,6 +42,11 @@ app.get("/health", (req, res) => {
 app.use("/api/v1", routes);
 
 app.use(notFoundHandler);
+
+// Sentry error handler — harus SEBELUM error handler custom kita
+// agar Sentry bisa menangkap error sebelum di-format jadi response JSON.
+Sentry.setupExpressErrorHandler(app);
+
 app.use(errorHandler);
 
 export default app;

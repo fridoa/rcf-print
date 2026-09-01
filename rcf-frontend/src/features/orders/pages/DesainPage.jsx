@@ -20,8 +20,8 @@ import { useMajukanStatus } from "../hooks/useOrderMutations";
  *
  * Menampilkan antrian ANTRI_DESAIN untuk KEDUA jenis (DTF & Polyflex sama-sama
  * lewat tahap desain, sesuai ERD). Memajukan order dari sini menandai desain
- * selesai — file & qty sudah tercatat saat order dibuat, jadi form hanya
- * mengumpulkan catatan opsional untuk operator produksi.
+ * selesai: designer mengisi jumlah file & total qty (dia yang tahu setelah
+ * membuka kiriman pelanggan), plus catatan opsional untuk operator produksi.
  *
  * Paginasi mengikuti pola WorkQueuePage: desktop = tombol + selector limit,
  * HP = infinite scroll. (Sebelumnya hardcode limit:50 tanpa pagination —
@@ -170,7 +170,7 @@ export function DesainPage() {
         open={dialog.open}
         onClose={tutupDialog}
         title="Selesai Desain"
-        description="Tandai desain selesai. Order akan maju ke antrian produksi."
+        description="Isi jumlah file & total qty hasil desain. Order akan maju ke antrian produksi."
       >
         <SelesaiDesainForm
           order={dialog.order}

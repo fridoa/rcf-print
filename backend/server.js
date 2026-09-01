@@ -1,3 +1,5 @@
+// Sentry HARUS di-import paling awal, sebelum module lain
+import "./src/instrument.js";
 import app from "./src/app.js";
 import { env } from "./src/config/env.js";
 import { connectDatabase, disconnectDatabase } from "./src/config/database.js";

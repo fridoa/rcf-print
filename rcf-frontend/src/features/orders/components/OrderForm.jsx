@@ -2,7 +2,6 @@ import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Alert, Button, SelectField, TextField } from "@/shared/components/ui";
 import { formatWhatsapp } from "@/shared/lib/phone";
-import { DesignPicker } from "@/features/designs";
 import { JENIS_LIST, JENIS_LABEL } from "../constants/order.constants";
 import { createOrderSchema } from "../schemas/order.schema";
 import { CustomerPicker } from "./CustomerPicker";
@@ -17,10 +16,9 @@ const JENIS_OPTIONS = JENIS_LIST.map((j) => ({
  *
  * Alur data (cerminan createOrderSchema / updateOrderSchema backend):
  *   - Pelanggan di-resolve ke customer_id lebih dulu oleh CustomerPicker
- *     (pelanggan baru dibuat di sana). customer_id ini juga kunci galeri desain.
- *   - design_ids: minimal 1 desain dipilih dari galeri pelanggan lewat
- *     DesignPicker. file_count TIDAK dikirim — backend menurunkannya.
- *   - total_qty: diisi admin di sini (qty diketahui sejak awal).
+ *     (pelanggan baru dibuat di sana).
+ *   - file_count & total_qty TIDAK di sini: designer yang menentukan keduanya
+ *     saat menandai desain selesai (dia yang membuka kiriman WhatsApp).
  *
  * Harga TIDAK di sini — admin mengisinya saat serah terima (READY → SELESAI).
  */
@@ -49,10 +47,6 @@ export function OrderForm({
         }
       : undefined;
 
-  const initialDesignIds = Array.isArray(order?.design_ids)
-    ? order.design_ids.map((d) => (typeof d === "object" ? d._id : d))
-    : [];
-
   const {
     control,
     handleSubmit,
@@ -64,8 +58,6 @@ export function OrderForm({
     defaultValues: {
       customer_id: initialCustomerId,
       _selection: initialSelection,
-      design_ids: initialDesignIds,
-      total_qty: order?.total_qty ?? "",
       jenis: order?.jenis ?? "",
       deadline: order?.deadline ? order.deadline.slice(0, 10) : "",
       catatan: order?.catatan ?? "",
@@ -76,8 +68,6 @@ export function OrderForm({
   // Label pilihan pelanggan hidup di field bantu non-schema supaya ikut
   // ter-reset saat form di-remount (Modal me-remount tiap dibuka).
   const selection = watch("_selection");
-  const customerId = watch("customer_id");
-  const designIds = watch("design_ids");
 
   const setSelection = (payload) => {
     // payload: { customer_id, label } | null
@@ -85,19 +75,11 @@ export function OrderForm({
     setValue("customer_id", payload?.customer_id ?? "", {
       shouldValidate: true,
     });
-    // Ganti pelanggan → galeri berbeda, kosongkan desain yang sebelumnya dipilih.
-    setValue("design_ids", [], { shouldValidate: false });
-  };
-
-  const setDesignIds = (ids) => {
-    setValue("design_ids", ids, { shouldValidate: true });
   };
 
   const kirim = (values) => {
     const payload = {
       customer_id: values.customer_id,
-      design_ids: values.design_ids,
-      total_qty: values.total_qty,
       jenis: values.jenis,
       catatan: values.catatan,
     };
@@ -115,30 +97,6 @@ export function OrderForm({
         selection={selection}
         onChange={setSelection}
         error={errors.customer_id?.message}
-      />
-
-      <DesignPicker
-        customerId={customerId}
-        value={designIds}
-        onChange={setDesignIds}
-        error={errors.design_ids?.message}
-      />
-
-      <Controller
-        name="total_qty"
-        control={control}
-        render={({ field, fieldState }) => (
-          <TextField
-            {...field}
-            label="Total Qty"
-            type="number"
-            min="1"
-            inputMode="numeric"
-            placeholder="24"
-            hint="Total potong/pcs untuk order ini."
-            error={fieldState.error?.message}
-          />
-        )}
       />
 
       <Controller

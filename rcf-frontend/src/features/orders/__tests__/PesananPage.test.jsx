@@ -49,18 +49,9 @@ vi.mock("@/features/customers/api/customer.api", () => ({
   },
 }));
 
-vi.mock("@/features/designs/api/design.api", () => ({
-  designApi: {
-    list: vi.fn(),
-    upload: vi.fn(),
-    remove: vi.fn(),
-  },
-}));
-
 const { authApi } = await import("@/features/auth/api/auth.api");
 const { orderApi } = await import("@/features/orders/api/order.api");
 const { customerApi } = await import("@/features/customers/api/customer.api");
-const { designApi } = await import("@/features/designs/api/design.api");
 
 const ADMIN = {
   _id: "u1",
@@ -72,22 +63,6 @@ const ADMIN = {
 };
 
 const BUDI = { _id: "c1", name: "Budi Santoso", whatsapp: "6281234567890" };
-
-const DESIGNS = [
-  {
-    _id: "d1",
-    customer_id: "c1",
-    url: "https://ik.test/d1.png",
-    thumbnail_url: "https://ik.test/d1-thumb.png",
-    label: "Logo depan",
-    original_name: "logo.png",
-  },
-];
-
-const daftarDesign = () => ({
-  items: DESIGNS,
-  pagination: { page: 1, limit: 50, total: DESIGNS.length, totalPages: 1 },
-});
 
 const ORDER_READY = {
   _id: "o1",
@@ -251,16 +226,15 @@ describe("PesananPage — membuat order", () => {
     vi.resetAllMocks();
     orderApi.list.mockResolvedValue(daftar([ORDER_READY]));
     customerApi.list.mockResolvedValue(daftar([BUDI]));
-    designApi.list.mockResolvedValue(daftarDesign());
   });
 
-  it("membuat order dengan pelanggan + desain + qty + jenis", async () => {
+  it("membuat order dengan pelanggan + jenis (file & qty diisi designer)", async () => {
     orderApi.create.mockResolvedValue({ ...ORDER_ANTRI });
 
     await renderAdmin();
 
     await userEvent.click(screen.getByRole("button", { name: /buat order/i }));
-    await screen.findByText(/detail desain diisi tim desain/i);
+    await screen.findByText(/jumlah file & qty diisi designer/i);
 
     // pilih pelanggan lewat picker
     await userEvent.type(
@@ -268,12 +242,6 @@ describe("PesananPage — membuat order", () => {
       "Budi"
     );
     await userEvent.click(await within(screen.getByRole("dialog")).findByText("Budi Santoso"));
-
-    // galeri termuat → pilih satu desain
-    await userEvent.click(await screen.findByTitle("Logo depan"));
-
-    // total qty
-    await userEvent.type(screen.getByLabelText(/total qty/i), "24");
 
     // pilih jenis
     await userEvent.selectOptions(
@@ -289,8 +257,6 @@ describe("PesananPage — membuat order", () => {
       expect(orderApi.create).toHaveBeenCalledWith(
         expect.objectContaining({
           customer_id: "c1",
-          design_ids: ["d1"],
-          total_qty: 24,
           jenis: "DTF",
         })
       )
@@ -306,26 +272,12 @@ describe("PesananPage — membuat order", () => {
       name: "Citra Dewi",
       whatsapp: "6281299998888",
     });
-    // Galeri pelanggan baru: kosong dulu, lalu upload menambah satu desain.
-    designApi.list.mockResolvedValue({
-      items: [],
-      pagination: { page: 1, limit: 50, total: 0, totalPages: 1 },
-    });
-    const desainBaru = {
-      _id: "d9",
-      customer_id: "c9",
-      url: "https://ik.test/d9.png",
-      thumbnail_url: "https://ik.test/d9-thumb.png",
-      label: null,
-      original_name: "new.png",
-    };
-    designApi.upload.mockResolvedValue({ design: desainBaru, deduped: false });
     orderApi.create.mockResolvedValue({ ...ORDER_ANTRI });
 
     await renderAdmin();
 
     await userEvent.click(screen.getByRole("button", { name: /buat order/i }));
-    await screen.findByText(/detail desain diisi tim desain/i);
+    await screen.findByText(/jumlah file & qty diisi designer/i);
 
     // ketik nomor yang belum terdaftar → sub-form pelanggan baru muncul inline
     await userEvent.type(
@@ -351,19 +303,6 @@ describe("PesananPage — membuat order", () => {
       )
     );
 
-    // upload desain untuk galeri (masih kosong) lalu otomatis terpilih
-    const file = new File(["x"], "new.png", { type: "image/png" });
-    await userEvent.upload(
-      await screen.findByLabelText(/upload desain baru/i),
-      file
-    );
-    await waitFor(() =>
-      expect(designApi.upload).toHaveBeenCalledWith(
-        expect.objectContaining({ file, customer_id: "c9" })
-      )
-    );
-
-    await userEvent.type(screen.getByLabelText(/total qty/i), "12");
     await userEvent.selectOptions(screen.getByLabelText(/jenis sablon/i), "DTF");
     await userEvent.click(
       screen.getByRole("button", { name: /^simpan order$/i })
@@ -373,19 +312,17 @@ describe("PesananPage — membuat order", () => {
       expect(orderApi.create).toHaveBeenCalledWith(
         expect.objectContaining({
           customer_id: "c9",
-          design_ids: ["d9"],
-          total_qty: 12,
           jenis: "DTF",
         })
       )
     );
   });
 
-  it("tidak memanggil create kalau pelanggan/desain/qty/jenis belum lengkap", async () => {
+  it("tidak memanggil create kalau pelanggan/jenis belum lengkap", async () => {
     await renderAdmin();
 
     await userEvent.click(screen.getByRole("button", { name: /buat order/i }));
-    await screen.findByText(/detail desain diisi tim desain/i);
+    await screen.findByText(/jumlah file & qty diisi designer/i);
 
     await userEvent.click(
       screen.getByRole("button", { name: /^simpan order$/i })
@@ -395,27 +332,14 @@ describe("PesananPage — membuat order", () => {
     expect(orderApi.create).not.toHaveBeenCalled();
   });
 
-  it("tetap menahan submit kalau desain belum dipilih (qty & jenis sudah diisi)", async () => {
+  it("tidak lagi menampilkan input jumlah file / total qty di form order", async () => {
     await renderAdmin();
 
     await userEvent.click(screen.getByRole("button", { name: /buat order/i }));
-    await screen.findByText(/detail desain diisi tim desain/i);
+    await screen.findByText(/jumlah file & qty diisi designer/i);
 
-    await userEvent.type(screen.getByLabelText(/^pelanggan$/i), "Budi");
-    await userEvent.click(await within(screen.getByRole("dialog")).findByText("Budi Santoso"));
-    await screen.findByTitle("Logo depan"); // galeri termuat, tapi tidak dipilih
-
-    await userEvent.type(screen.getByLabelText(/total qty/i), "24");
-    await userEvent.selectOptions(screen.getByLabelText(/jenis sablon/i), "DTF");
-
-    await userEvent.click(
-      screen.getByRole("button", { name: /^simpan order$/i })
-    );
-
-    expect(
-      await screen.findByText(/pilih minimal satu desain/i)
-    ).toBeInTheDocument();
-    expect(orderApi.create).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/jumlah file/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/total qty/i)).not.toBeInTheDocument();
   });
 });
 
@@ -489,7 +413,6 @@ describe("PesananPage — detail & tracking", () => {
   it("membuka dialog detail dan menampilkan timeline pelaku tiap langkah", async () => {
     orderApi.detail.mockResolvedValue({
       ...ORDER_READY,
-      design_ids: [],
     });
     orderApi.riwayat.mockResolvedValue([
       {
@@ -639,7 +562,10 @@ describe("PesananPage — koreksi status", () => {
 
   describe("Edit dan Hapus Order", () => {
     it("membuka modal edit dengan data terisi dan memanggil orderApi.update saat disimpan", async () => {
-      orderApi.update.mockResolvedValue({ ...ORDER_READY, total_qty: 99 });
+      orderApi.update.mockResolvedValue({
+        ...ORDER_READY,
+        catatan: "Revisi catatan",
+      });
 
       await renderAdmin();
 
@@ -654,10 +580,11 @@ describe("PesananPage — koreksi status", () => {
         await screen.findByText(`Edit Order ${ORDER_READY.kode_order}`)
       ).toBeInTheDocument();
 
-      // Ubah total qty
-      const inputQty = screen.getByLabelText(/total qty/i);
-      await userEvent.clear(inputQty);
-      await userEvent.type(inputQty, "99");
+      // Ubah catatan — jumlah file & qty bukan lagi field admin (designer yang
+      // menentukannya saat selesai desain).
+      const inputCatatan = screen.getByLabelText(/catatan/i);
+      await userEvent.clear(inputCatatan);
+      await userEvent.type(inputCatatan, "Revisi catatan");
 
       await userEvent.click(
         screen.getByRole("button", { name: /simpan perubahan/i })
@@ -667,7 +594,7 @@ describe("PesananPage — koreksi status", () => {
         expect(orderApi.update).toHaveBeenCalledWith(
           expect.objectContaining({
             id: "o1",
-            total_qty: 99,
+            catatan: "Revisi catatan",
           })
         )
       );

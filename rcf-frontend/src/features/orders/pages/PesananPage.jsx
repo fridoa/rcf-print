@@ -436,7 +436,7 @@ export function PesananPage() {
         open={dialog.mode === "tambah"}
         onClose={tutupDialog}
         title="Buat Order Baru"
-        description="Detail desain diisi tim desain, harga diisi saat serah terima."
+        description="Jumlah file & qty diisi designer; harga diisi saat serah terima."
       >
         <OrderForm
           onSubmit={simpanBaru}
@@ -482,7 +482,7 @@ export function PesananPage() {
         open={dialog.mode === "edit"}
         onClose={tutupDialog}
         title={`Edit Order ${dialog.order?.kode_order ?? ""}`}
-        description="Perbarui spesifikasi, jumlah qty, deadline, atau catatan order ini."
+        description="Perbarui pelanggan, jenis, deadline, atau catatan order ini."
       >
         <OrderForm
           order={dialog.order}

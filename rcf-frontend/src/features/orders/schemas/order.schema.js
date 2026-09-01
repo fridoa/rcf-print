@@ -19,31 +19,17 @@ const kosongJadiUndefined = (v, original) => (original === "" ? undefined : v);
  *
  * Pelanggan: DI FE, pelanggan selalu di-resolve ke customer_id lebih dulu
  * (pelanggan baru dibuat oleh CustomerPicker → POST /customers sebelum order
- * disimpan), supaya galeri desain per-pelanggan bisa dimuat. Karena itu di
- * titik create order yang dikirim cukup customer_id. Backend tetap menerima
- * bentuk { customer } untuk pemakai non-FE (mis. webhook), tapi schema FE ini
- * hanya memvalidasi customer_id.
+ * disimpan). Karena itu di titik create order yang dikirim cukup customer_id.
+ * Backend tetap menerima bentuk { customer } untuk pemakai non-FE (mis.
+ * webhook), tapi schema FE ini hanya memvalidasi customer_id.
  *
- * design_ids: minimal 1 desain WAJIB dipilih dari galeri pelanggan. file_count
- * TIDAK dikirim klien — backend menurunkannya dari design_ids.length.
- *
- * total_qty: diisi admin saat create (qty sudah diketahui di awal), mirror
- * createOrderSchema backend.
+ * file_count & total_qty TIDAK di sini: yang menentukan keduanya adalah
+ * designer (dia yang membuka file kiriman WhatsApp dan tahu berapa file
+ * efektif serta berapa total potong). Admin hanya mencatat pelanggan, jenis,
+ * deadline, dan catatan. Mirror createOrderSchema backend.
  */
 export const createOrderSchema = yup.object({
   customer_id: yup.string().trim().required("Pelanggan wajib dipilih"),
-  design_ids: yup
-    .array()
-    .of(yup.string().trim())
-    .min(1, "Pilih minimal satu desain")
-    .required("Pilih minimal satu desain"),
-  total_qty: yup
-    .number()
-    .transform(kosongJadiUndefined)
-    .typeError("Total qty harus angka")
-    .integer("Total qty harus bilangan bulat")
-    .min(1, "Total qty minimal 1")
-    .required("Total qty wajib diisi"),
   jenis: yup
     .string()
     .oneOf(JENIS_LIST, "Jenis harus DTF atau Polyflex")
@@ -59,13 +45,26 @@ export const createOrderSchema = yup.object({
 /**
  * Form "Selesai Desain" (ANTRI_DESAIN → produksi).
  *
- * file_count & total_qty TIDAK lagi di sini — keduanya sudah tercatat saat
- * order dibuat (design_ids + total_qty). Memajukan status keluar dari
- * ANTRI_DESAIN kini sekadar menandai desain selesai, dengan catatan opsional
- * untuk operator produksi. Mirror order.validator.js backend yang sudah
- * melonggarkan transisi ini.
+ * Di sinilah file_count & total_qty ditetapkan: designer yang membuka kiriman
+ * pelanggan tahu berapa file efektif dan berapa total potong yang harus
+ * diproduksi. Keduanya WAJIB — setelah order masuk produksi tidak ada lagi
+ * titik pengisian di alur normal (backend menolak transisi tanpa angka ini).
  */
 export const selesaiDesainSchema = yup.object({
+  file_count: yup
+    .number()
+    .transform(kosongJadiUndefined)
+    .typeError("Jumlah file harus angka")
+    .integer("Jumlah file harus bilangan bulat")
+    .min(1, "Jumlah file minimal 1")
+    .required("Jumlah file wajib diisi"),
+  total_qty: yup
+    .number()
+    .transform(kosongJadiUndefined)
+    .typeError("Total qty harus angka")
+    .integer("Total qty harus bilangan bulat")
+    .min(1, "Total qty minimal 1")
+    .required("Total qty wajib diisi"),
   catatan: yup.string().trim().max(300, "Catatan maksimal 300 karakter"),
 });
 

@@ -12,12 +12,13 @@ import { OrderReadyWhatsappDialog } from "./OrderReadyWhatsappDialog";
  * Dialog detail order + timeline tracking.
  *
  * Menjawab kebutuhan "kelihatan siapa yang approve ke step berikutnya":
- * bagian atas ringkasan order (pelanggan, jenis, qty, harga, desain), bagian
- * bawah OrderTimeline yang menampilkan tiap perpindahan status + pelakunya.
+ * bagian atas ringkasan order (pelanggan, jenis, qty, harga, jumlah file),
+ * bagian bawah OrderTimeline yang menampilkan tiap perpindahan status +
+ * pelakunya.
  *
  * Data diambil ulang dari server (bukan dari baris tabel) supaya field yang
- * tidak ikut di list — design_ids ter-populate, dsb — lengkap. Query hanya
- * jalan saat dialog terbuka (orderId ada), lihat useOrder/useOrderRiwayat.
+ * tidak ikut di list lengkap. Query hanya jalan saat dialog terbuka
+ * (orderId ada), lihat useOrder/useOrderRiwayat.
  */
 export function OrderDetailDialog({ open, orderId, onClose }) {
   const {
@@ -33,7 +34,6 @@ export function OrderDetailDialog({ open, orderId, onClose }) {
   } = useOrderRiwayat(open ? orderId : undefined);
 
   const customer = order?.customer_id;
-  const designs = Array.isArray(order?.design_ids) ? order.design_ids : [];
   const [waOpen, setWaOpen] = useState(false);
 
   return (
@@ -116,33 +116,6 @@ export function OrderDetailDialog({ open, orderId, onClose }) {
                 </div>
               </dl>
 
-              {/* Thumbnail desain terkait */}
-              {designs.length > 0 && (
-                <div>
-                  <p className="mb-1.5 text-xs text-slate-500">
-                    Desain ({designs.length})
-                  </p>
-                  <ul className="flex flex-wrap gap-2">
-                    {designs.map((d) => (
-                      <li key={d._id}>
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={d.label || d.original_name}
-                        >
-                          <img
-                            src={d.thumbnail_url || d.url}
-                            alt={d.label || d.original_name || "Desain"}
-                            loading="lazy"
-                            className="h-14 w-14 rounded border border-slate-200 object-cover"
-                          />
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
           )}
 

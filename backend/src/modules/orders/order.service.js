@@ -4,7 +4,6 @@ import CounterModel from "./counter.model.js";
 import StatusLogModel from "./status-log.model.js";
 import CustomerModel from "../customers/customer.model.js";
 import customerService from "../customers/customer.service.js";
-import designService from "../designs/design.service.js";
 import {
   JENIS,
   STATUS,
@@ -46,17 +45,17 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  *
  * Fungsi ini SENGAJA tidak tahu dari mana requestnya datang — controller HTTP
  * maupun (nanti) webhook WhatsApp memanggil bentuk yang sama. Yang wajib hanya
- * customer_id + jenis + siapa yang membuat (created_by). Detail teknis
- * (file_count, total_qty) tidak diisi di sini; itu tugas designer saat status
- * maju dari ANTRI_DESAIN.
+ * customer_id + jenis + siapa yang membuat (created_by).
+ *
+ * file_count & total_qty TIDAK diisi di sini: yang menentukan keduanya adalah
+ * designer (dia yang membuka file kiriman WhatsApp), jadi order lahir dengan
+ * kedua angka null dan terisi saat designer menandai desain selesai.
  *
  * @param {object} input
  * @param {string} [input.customer_id]  pelanggan lama yang sudah dipilih
  * @param {object} [input.customer]     { whatsapp, name?, note? } untuk
  *                                       find-or-create by nomor (input 1 langkah)
  * @param {"DTF"|"POLYFLEX"} input.jenis
- * @param {string[]} input.design_ids  desain dari galeri pelanggan (min 1)
- * @param {number} input.total_qty     jumlah, diisi admin saat order dibuat
  * @param {string} input.created_by  id user pembuat
  * @param {Date}   [input.deadline]
  * @param {string} [input.catatan]
@@ -65,8 +64,6 @@ const create = async ({
   customer_id,
   customer,
   jenis,
-  design_ids,
-  total_qty,
   created_by,
   deadline,
   catatan,
@@ -91,15 +88,6 @@ const create = async ({
     }
   }
 
-  // Validasi desain: harus ada dan semuanya milik pelanggan ini. Dilakukan
-  // SEBELUM mengambil nomor urut supaya order gagal tidak membakar nomor.
-  // file_count diturunkan dari jumlah desain yang dipilih.
-  const validDesignIds = await designService.validateMilikCustomer(
-    design_ids,
-    resolvedCustomerId
-  );
-  const file_count = validDesignIds.length;
-
   const now = new Date();
   const ddmmyy = formatDDMMYY(now);
   const tgl_order = awalHariJakarta(now);
@@ -113,9 +101,6 @@ const create = async ({
     kode_order,
     jenis,
     customer_id: resolvedCustomerId,
-    design_ids: validDesignIds,
-    file_count,
-    total_qty,
     tgl_order,
     seq_harian,
     status: STATUS.ANTRI_DESAIN,
@@ -126,10 +111,7 @@ const create = async ({
 
   // populate supaya pemanggil (HTTP / nanti WA) langsung dapat data pelanggan
   // tanpa query lanjutan — mis. FE menampilkan nama di baris baru.
-  await order.populate([
-    { path: "customer_id", select: "name whatsapp" },
-    { path: "design_ids", select: "url thumbnail_url label original_name" },
-  ]);
+  await order.populate({ path: "customer_id", select: "name whatsapp" });
 
   // Log pembuatan: status_dari null menandai event "order dibuat".
   await StatusLogModel.create({
@@ -215,9 +197,10 @@ const list = async ({
 };
 
 const getById = async (id) => {
-  const order = await OrderModel.findById(id)
-    .populate("customer_id", "name whatsapp")
-    .populate("design_ids", "url thumbnail_url label original_name");
+  const order = await OrderModel.findById(id).populate(
+    "customer_id",
+    "name whatsapp"
+  );
   if (!order) {
     throw createHttpError(404, "Order tidak ditemukan");
   }
@@ -271,10 +254,23 @@ const majukanStatus = async (id, aktor, payload = {}) => {
 
   const statusDari = order.status;
 
-  // Transisi keluar dari ANTRI_DESAIN = "tandai desain selesai". file_count &
-  // total_qty sudah terisi saat order dibuat (dari design_ids + input admin),
-  // jadi di sini hanya perlu mencatat SIAPA yang menyelesaikan desain.
+  // Transisi keluar dari ANTRI_DESAIN = "selesai desain". DESIGNER-lah yang
+  // menentukan berapa file efektif dan berapa total potong (dia yang membuka
+  // kiriman pelanggan), jadi kedua angka WAJIB di titik ini — sekali order
+  // masuk produksi, tak ada lagi kesempatan mengisinya di alur normal.
   if (statusDari === STATUS.ANTRI_DESAIN) {
+    const fileBaru = payload.file_count ?? order.file_count;
+    const qtyBaru = payload.total_qty ?? order.total_qty;
+
+    if (fileBaru == null || qtyBaru == null) {
+      throw createHttpError(
+        400,
+        "Jumlah file dan total qty wajib diisi saat menandai desain selesai"
+      );
+    }
+
+    order.file_count = fileBaru;
+    order.total_qty = qtyBaru;
     order.designed_by = aktor.id;
   }
 
@@ -505,7 +501,7 @@ const statistik = async () => {
 /**
  * Update data order (ADMIN).
  *
- * Mengubah data order (jenis, customer_id, design_ids, total_qty, deadline, catatan, dll).
+ * Mengubah data order (jenis, customer_id, file_count, total_qty, deadline, catatan, dll).
  */
 const update = async (id, aktor, payload) => {
   const order = await OrderModel.findById(id);
@@ -513,24 +509,12 @@ const update = async (id, aktor, payload) => {
     throw createHttpError(404, "Order tidak ditemukan");
   }
 
-  const resolvedCustomerId =
-    payload.customer_id ?? order.customer_id?.toString();
-
   if (payload.customer_id && payload.customer_id !== order.customer_id?.toString()) {
     const customer = await CustomerModel.findById(payload.customer_id);
     if (!customer) {
       throw createHttpError(404, "Pelanggan tidak ditemukan");
     }
     order.customer_id = customer._id;
-  }
-
-  if (payload.design_ids) {
-    const validDesignIds = await designService.validateMilikCustomer(
-      payload.design_ids,
-      resolvedCustomerId
-    );
-    order.design_ids = validDesignIds;
-    order.file_count = validDesignIds.length;
   }
 
   if (payload.jenis) {
@@ -543,6 +527,7 @@ const update = async (id, aktor, payload) => {
     order.jenis = payload.jenis;
   }
 
+  if (payload.file_count !== undefined) order.file_count = payload.file_count;
   if (payload.total_qty !== undefined) order.total_qty = payload.total_qty;
   if (payload.deadline !== undefined) order.deadline = payload.deadline;
   if (payload.catatan !== undefined) order.catatan = payload.catatan;

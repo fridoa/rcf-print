@@ -23,7 +23,10 @@ export const rekapQuerySchema = Yup.object({
     .transform(kosongJadiUndefined)
     .typeError("Tanggal 'sampai' tidak valid")
     .when("dari", (dari, schema) =>
-      dari && dari[0]
+      // Cek isNaN: kalau "dari" tidak bisa diparse, Yup masih meneruskan
+      // Invalid Date ke sini dan schema.min() melempar RangeError (jadi 500).
+      // Biarkan typeError "dari" yang bicara — di sini cukup dilewati.
+      dari && dari[0] && !Number.isNaN(dari[0].getTime())
         ? schema.min(dari[0], "Tanggal 'sampai' tidak boleh sebelum 'dari'")
         : schema
     ),

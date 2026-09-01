@@ -23,10 +23,11 @@ const kosongJadiUndefined = (v, original) =>
  * Tepat SATU dari keduanya wajib ada. Ini mencegah dobel kerja input
  * pelanggan tanpa memaksa admin membuka menu Pelanggan lebih dulu.
  *
- * Detail teknis: total_qty diisi admin di sini (jumlah sudah diketahui saat
- * order dibuat), dan design_ids memilih desain dari galeri pelanggan (minimal
- * 1). file_count TIDAK dikirim client — diturunkan dari jumlah design_ids di
- * service. created_by dari token.
+ * Detail teknis: file_count & total_qty TIDAK diisi di sini. Yang menentukan
+ * keduanya adalah DESIGNER — dia yang membuka file kiriman WhatsApp dan tahu
+ * berapa file efektif serta berapa total potong yang harus diproduksi. Angka
+ * itu masuk saat designer menandai desain selesai (PATCH /orders/:id/status).
+ * created_by dari token.
  */
 export const createOrderSchema = Yup.object({
   customer_id: Yup.string()
@@ -54,21 +55,6 @@ export const createOrderSchema = Yup.object({
   jenis: Yup.string()
     .oneOf(JENIS_LIST, "Jenis harus DTF atau POLYFLEX")
     .required("Jenis sablon wajib dipilih"),
-  // Desain yang dipakai: minimal 1 id, semua harus milik pelanggan yang sama
-  // (divalidasi di service). Diterima sebagai array string ObjectId.
-  design_ids: Yup.array()
-    .transform((value, original) => {
-      if (original === undefined || original === "") return undefined;
-      return Array.isArray(original) ? original : [original];
-    })
-    .of(Yup.string().trim().required())
-    .min(1, "Pilih minimal satu desain")
-    .required("Pilih minimal satu desain"),
-  total_qty: Yup.number()
-    .transform(kosongJadiUndefined)
-    .integer("total_qty harus bilangan bulat")
-    .min(1, "total_qty minimal 1")
-    .required("Jumlah (total_qty) wajib diisi"),
   deadline: Yup.date()
     .transform(kosongJadiUndefined)
     .typeError("deadline harus tanggal yang valid")
@@ -86,13 +72,10 @@ export const createOrderSchema = Yup.object({
 export const updateOrderSchema = Yup.object({
   customer_id: Yup.string().trim(),
   jenis: Yup.string().oneOf(JENIS_LIST, "Jenis harus DTF atau POLYFLEX"),
-  design_ids: Yup.array()
-    .transform((value, original) => {
-      if (original === undefined || original === "") return undefined;
-      return Array.isArray(original) ? original : [original];
-    })
-    .of(Yup.string().trim().required())
-    .min(1, "Pilih minimal satu desain"),
+  file_count: Yup.number()
+    .transform(kosongJadiUndefined)
+    .integer("Jumlah file harus bilangan bulat")
+    .min(1, "Jumlah file minimal 1"),
   total_qty: Yup.number()
     .transform(kosongJadiUndefined)
     .integer("total_qty harus bilangan bulat")
@@ -115,11 +98,22 @@ export const updateOrderSchema = Yup.object({
 /**
  * PATCH /orders/:id/status — majukan satu langkah.
  *
- * Sejak file_count & total_qty diisi saat order dibuat (dari design_ids &
- * input admin), transisi keluar ANTRI_DESAIN hanya "menandai desain selesai" —
- * tidak ada angka yang perlu dikirim. catatan opsional untuk semua transisi.
+ * file_count & total_qty dikirim saat transisi keluar ANTRI_DESAIN ("selesai
+ * desain"): designer-lah yang menentukan berapa file efektif dan berapa total
+ * potong setelah melihat kiriman pelanggan. Di skema keduanya opsional karena
+ * endpoint ini juga dipakai transisi produksi/packing yang tidak mengirim
+ * angka — service yang mewajibkannya khusus untuk transisi dari ANTRI_DESAIN.
+ * catatan opsional untuk semua transisi.
  */
 export const majukanStatusSchema = Yup.object({
+  file_count: Yup.number()
+    .transform(kosongJadiUndefined)
+    .integer("Jumlah file harus bilangan bulat")
+    .min(1, "Jumlah file minimal 1"),
+  total_qty: Yup.number()
+    .transform(kosongJadiUndefined)
+    .integer("total_qty harus bilangan bulat")
+    .min(1, "total_qty minimal 1"),
   catatan: Yup.string().trim().max(300, "Catatan maksimal 300 karakter"),
 });
 

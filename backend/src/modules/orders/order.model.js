@@ -36,13 +36,6 @@ const orderSchema = new Schema(
       ref: "Customer",
       required: true,
     },
-    // Desain yang dipakai order ini. Dipilih dari galeri pelanggan saat order
-    // dibuat (minimal 1). Semua desain wajib milik customer_id yang sama —
-    // divalidasi di service. file_count diturunkan dari panjang array ini.
-    design_ids: {
-      type: [{ type: Schema.Types.ObjectId, ref: "Design" }],
-      default: [],
-    },
     // Tanggal order dinormalkan ke awal hari WIB saat pembuatan; dipakai untuk
     // penomoran harian dan filter Data Order per tanggal.
     tgl_order: {
@@ -55,10 +48,11 @@ const orderSchema = new Schema(
       type: Number,
       required: true,
     },
-    // file_count diturunkan dari jumlah design_ids saat order dibuat; total_qty
-    // diisi admin saat membuat order (keputusan: harga & jumlah diketahui di
-    // awal, desain sudah dipilih dari galeri). Keduanya tidak lagi null setelah
-    // create — designer hanya "menandai desain selesai" untuk memajukan status.
+    // Jumlah file desain & total qty ditentukan DESIGNER, bukan admin: dia
+    // yang membuka file kiriman pelanggan (via WhatsApp — file tidak diunggah
+    // ke sistem) dan tahu berapa file efektif serta berapa total potong yang
+    // harus diproduksi. Karena itu keduanya null saat order dibuat dan terisi
+    // saat designer menandai desain selesai.
     file_count: {
       type: Number,
       default: null,

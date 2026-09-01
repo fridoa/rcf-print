@@ -6,7 +6,7 @@ import CounterModel from "../src/modules/orders/counter.model.js";
 import StatusLogModel from "../src/modules/orders/status-log.model.js";
 import { STATUS, JENIS } from "../src/modules/orders/order.constant.js";
 import { ROLES } from "../src/modules/auth/auth.constant.js";
-import { buatUserDanToken, buatCustomer, buatDesign } from "./helpers.js";
+import { buatUserDanToken, buatCustomer } from "./helpers.js";
 
 const URL = "/api/v1/orders";
 
@@ -17,7 +17,6 @@ describe("Order API", () => {
   let tokenProduksi;
   let tokenPacking;
   let customer;
-  let designs; // desain milik `customer`, dipakai saat membuat order
 
   beforeAll(async () => {
     await OrderModel.syncIndexes();
@@ -58,11 +57,6 @@ describe("Order API", () => {
     }));
 
     customer = await buatCustomer();
-    // Dua desain di galeri pelanggan ini, siap dipilih saat membuat order.
-    designs = [
-      await buatDesign(customer._id, { uploaded_by: adminUser._id }),
-      await buatDesign(customer._id, { uploaded_by: adminUser._id }),
-    ];
   });
 
   const sebagai = (token) => ({
@@ -75,15 +69,22 @@ describe("Order API", () => {
         .patch(`${URL}${path}`)
         .set("Authorization", `Bearer ${token}`)
         .send(body),
+    delete: (path = "") =>
+      request(app)
+        .delete(`${URL}${path}`)
+        .set("Authorization", `Bearer ${token}`),
   });
+
+  // Angka yang dikirim DESIGNER saat menandai desain selesai — sejak
+  // file_count & total_qty jadi wewenang designer, transisi keluar
+  // ANTRI_DESAIN wajib menyertakan keduanya.
+  const DESAIN = { file_count: 2, total_qty: 12 };
 
   /** Buat order lewat API (jalur normal) dan kembalikan body.data. */
   const buatOrderApi = async (override = {}) => {
     const res = await sebagai(tokenAdmin).post({
       customer_id: customer._id.toString(),
       jenis: JENIS.DTF,
-      design_ids: designs.map((d) => d._id.toString()),
-      total_qty: 12,
       ...override,
     });
     return res.body.data;
@@ -94,8 +95,6 @@ describe("Order API", () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
         jenis: JENIS.DTF,
-        design_ids: designs.map((d) => d._id.toString()),
-        total_qty: 24,
         catatan: "Kaos komunitas",
       });
 
@@ -103,68 +102,50 @@ describe("Order API", () => {
       expect(res.body.data.kode_order).toMatch(/^DTF\/\d{6}\/001$/);
       expect(res.body.data.status).toBe(STATUS.ANTRI_DESAIN);
       expect(res.body.data.seq_harian).toBe(1);
-      // file_count diturunkan dari jumlah design_ids; total_qty dari admin
-      expect(res.body.data.file_count).toBe(2);
-      expect(res.body.data.total_qty).toBe(24);
+      // file_count & total_qty belum diketahui saat order dibuat — designer
+      // yang menentukan keduanya saat menandai desain selesai
+      expect(res.body.data.file_count).toBeNull();
+      expect(res.body.data.total_qty).toBeNull();
       // harga belum ada sampai order diselesaikan
       expect(res.body.data.total_harga).toBeNull();
       expect(res.body.data.metode_bayar).toBeNull();
     });
 
-    it("menyimpan design_ids dan mengembalikannya ter-populate", async () => {
+    it("mengembalikan pelanggan ter-populate", async () => {
       const order = await buatOrderApi();
 
-      expect(order.design_ids).toHaveLength(2);
-      // ter-populate: tiap desain jadi objek dengan url & thumbnail
-      expect(order.design_ids[0]).toHaveProperty("url");
-      expect(order.design_ids[0]).toHaveProperty("thumbnail_url");
+      expect(order.customer_id).toHaveProperty("name");
+      expect(order.customer_id).toHaveProperty("whatsapp");
     });
 
-    it("menolak order tanpa design_ids (minimal satu desain)", async () => {
+    it("membuat order tanpa file_count / total_qty (diisi designer nanti)", async () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
         jenis: JENIS.DTF,
-        total_qty: 10,
       });
-      expect(res.status).toBe(400);
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.file_count).toBeNull();
+      expect(res.body.data.total_qty).toBeNull();
     });
 
-    it("menolak order tanpa total_qty", async () => {
+    it("mengabaikan file_count / total_qty yang diselundupkan admin saat create", async () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
         jenis: JENIS.DTF,
-        design_ids: designs.map((d) => d._id.toString()),
-      });
-      expect(res.status).toBe(400);
-    });
-
-    it("menolak design_ids milik pelanggan lain tanpa membakar nomor", async () => {
-      const lain = await buatCustomer({
-        name: "Pelanggan Lain",
-        whatsapp: "081299998888",
-      });
-      const designLain = await buatDesign(lain._id, {
-        uploaded_by: adminUser._id,
+        file_count: 9,
+        total_qty: 99,
       });
 
-      const res = await sebagai(tokenAdmin).post({
-        customer_id: customer._id.toString(),
-        jenis: JENIS.DTF,
-        design_ids: [designLain._id.toString()],
-        total_qty: 10,
-      });
-
-      expect(res.status).toBe(400);
-      // gagal sebelum penomoran → tidak ada counter yang terbentuk
-      expect(await CounterModel.countDocuments()).toBe(0);
+      expect(res.status).toBe(201);
+      expect(res.body.data.file_count).toBeNull();
+      expect(res.body.data.total_qty).toBeNull();
     });
 
     it("memberi prefix PLF untuk POLYFLEX", async () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
         jenis: JENIS.POLYFLEX,
-        design_ids: [designs[0]._id.toString()],
-        total_qty: 5,
       });
 
       expect(res.status).toBe(201);
@@ -195,8 +176,6 @@ describe("Order API", () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
         jenis: "SUBLIM",
-        design_ids: [designs[0]._id.toString()],
-        total_qty: 5,
       });
       expect(res.status).toBe(400);
     });
@@ -205,8 +184,6 @@ describe("Order API", () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: "64b7f0000000000000000000",
         jenis: JENIS.DTF,
-        design_ids: [designs[0]._id.toString()],
-        total_qty: 5,
       });
 
       expect(res.status).toBe(404);
@@ -218,8 +195,6 @@ describe("Order API", () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
         jenis: JENIS.DTF,
-        design_ids: designs.map((d) => d._id.toString()),
-        total_qty: 5,
         status: STATUS.SELESAI,
         total_harga: 999999,
         created_by: "64b7f0000000000000000000",
@@ -234,8 +209,6 @@ describe("Order API", () => {
       const res = await sebagai(tokenDesigner).post({
         customer_id: customer._id.toString(),
         jenis: JENIS.DTF,
-        design_ids: [designs[0]._id.toString()],
-        total_qty: 5,
       });
       expect(res.status).toBe(403);
       expect(await OrderModel.countDocuments()).toBe(0);
@@ -247,8 +220,6 @@ describe("Order API", () => {
         .send({
           customer_id: customer._id.toString(),
           jenis: JENIS.DTF,
-          design_ids: [designs[0]._id.toString()],
-          total_qty: 5,
         });
       expect(res.status).toBe(401);
     });
@@ -258,19 +229,56 @@ describe("Order API", () => {
     it("DESIGNER menandai desain selesai ANTRI_DESAIN → ANTRI_CETAK", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
 
-      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
 
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe(STATUS.ANTRI_CETAK);
-      // file_count & total_qty sudah terisi sejak create, tidak berubah
+      // angka yang dikirim designer tersimpan di order
       expect(res.body.data.file_count).toBe(2);
       expect(res.body.data.total_qty).toBe(12);
       expect(res.body.data.designed_by).toBeTruthy();
     });
 
+    it("menolak selesai desain tanpa file_count / total_qty", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.DTF });
+
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+
+      expect(res.status).toBe(400);
+      // order harus tetap di antrian desain
+      const setelah = await OrderModel.findById(order._id);
+      expect(setelah.status).toBe(STATUS.ANTRI_DESAIN);
+      expect(setelah.file_count).toBeNull();
+    });
+
+    it("menolak file_count / total_qty nol atau negatif dari designer", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.DTF });
+
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, {
+        file_count: 0,
+        total_qty: -3,
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("transisi produksi tidak mengubah angka yang sudah ditetapkan designer", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.DTF });
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
+
+      const res = await sebagai(tokenProduksi).patch(`/${order._id}/status`, {
+        file_count: 99,
+        total_qty: 99,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.file_count).toBe(2);
+      expect(res.body.data.total_qty).toBe(12);
+    });
+
     it("PRODUKSI memajukan ANTRI_CETAK → PACKING", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
 
       const res = await sebagai(tokenProduksi).patch(`/${order._id}/status`, {});
       expect(res.status).toBe(200);
@@ -279,7 +287,7 @@ describe("Order API", () => {
 
     it("PACKING memajukan PACKING → READY", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
       await sebagai(tokenProduksi).patch(`/${order._id}/status`, {});
 
       const res = await sebagai(tokenPacking).patch(`/${order._id}/status`, {});
@@ -296,7 +304,7 @@ describe("Order API", () => {
 
     it("tidak bisa memajukan lewat endpoint status saat sudah READY (menuju SELESAI)", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
       await sebagai(tokenProduksi).patch(`/${order._id}/status`, {});
       await sebagai(tokenPacking).patch(`/${order._id}/status`, {});
 
@@ -309,7 +317,7 @@ describe("Order API", () => {
     it("memakai ANTRI_CUTTING, bukan ANTRI_CETAK", async () => {
       const order = await buatOrderApi({ jenis: JENIS.POLYFLEX });
 
-      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
 
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe(STATUS.ANTRI_CUTTING);
@@ -319,7 +327,7 @@ describe("Order API", () => {
   describe("PATCH /orders/:id/selesai", () => {
     const sampaiReady = async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
       await sebagai(tokenProduksi).patch(`/${order._id}/status`, {});
       await sebagai(tokenPacking).patch(`/${order._id}/status`, {});
       return order;
@@ -381,7 +389,7 @@ describe("Order API", () => {
   describe("PATCH /orders/:id/koreksi", () => {
     it("ADMIN bisa memundurkan status dengan alasan tercatat", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
 
       const res = await sebagai(tokenAdmin).patch(`/${order._id}/koreksi`, {
         status: STATUS.ANTRI_DESAIN,
@@ -402,7 +410,7 @@ describe("Order API", () => {
 
     it("membatalkan jejak pembayaran saat dikoreksi keluar dari SELESAI", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
       await sebagai(tokenProduksi).patch(`/${order._id}/status`, {});
       await sebagai(tokenPacking).patch(`/${order._id}/status`, {});
       await sebagai(tokenAdmin).patch(`/${order._id}/selesai`, {
@@ -458,7 +466,7 @@ describe("Order API", () => {
       await buatOrderApi({ jenis: JENIS.POLYFLEX });
       // satu order yang dimajukan ke ANTRI_CETAK
       const o = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${o._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${o._id}/status`, DESAIN);
     });
 
     it("mengembalikan semua order dengan paginasi dan populate customer", async () => {
@@ -497,7 +505,7 @@ describe("Order API", () => {
     it("aktif=true menyembunyikan order SELESAI", async () => {
       // selesaikan salah satu order dulu
       const o = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${o._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${o._id}/status`, DESAIN);
       await sebagai(tokenProduksi).patch(`/${o._id}/status`, {});
       await sebagai(tokenPacking).patch(`/${o._id}/status`, {});
       await sebagai(tokenAdmin).patch(`/${o._id}/selesai`, {
@@ -551,7 +559,7 @@ describe("Order API", () => {
 
     it("mengembalikan riwayat status terurut", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
-      await sebagai(tokenDesigner).patch(`/${order._id}/status`, {});
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
 
       const res = await sebagai(tokenAdmin).get(`/${order._id}/riwayat`);
       expect(res.status).toBe(200);
@@ -564,7 +572,7 @@ describe("Order API", () => {
 
   describe("PATCH /orders/:id (Update Order)", () => {
     it("ADMIN bisa mengubah total_qty, catatan, dan deadline", async () => {
-      const order = await buatOrderApi({ jenis: JENIS.DTF, total_qty: 10 });
+      const order = await buatOrderApi({ jenis: JENIS.DTF });
 
       const res = await sebagai(tokenAdmin).patch(`/${order._id}`, {
         total_qty: 25,
@@ -580,7 +588,6 @@ describe("Order API", () => {
     it("menolak role non-admin untuk update dengan 403", async () => {
       const order = await buatOrderApi();
       const res = await sebagai(tokenDesigner).patch(`/${order._id}`, {
-        total_qty: 99,
       });
       expect(res.status).toBe(403);
     });

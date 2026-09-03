@@ -39,7 +39,7 @@ describe("OrderReadyWhatsappDialog", () => {
     );
   });
 
-  it("memanggil onClose saat tombol Tutup diklik", async () => {
+  it("memanggil onClose saat tombol Nanti Saja diklik", async () => {
     const handleClose = vi.fn();
     render(
       <OrderReadyWhatsappDialog
@@ -49,9 +49,7 @@ describe("OrderReadyWhatsappDialog", () => {
       />
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: /nanti saja \/ tutup/i })
-    );
+    await userEvent.click(screen.getByRole("button", { name: /nanti saja/i }));
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 

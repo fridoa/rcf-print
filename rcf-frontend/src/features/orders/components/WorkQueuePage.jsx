@@ -16,7 +16,7 @@ import { useMajukanStatus } from "../hooks/useOrderMutations";
 import { STATUS } from "../constants/order.constants";
 
 /**
- * Kerangka layar antrian kerja satu peran (Cetak, Polyflex, Packing).
+ * Kerangka layar antrian kerja satu peran (Cetak, Polyflex, Sublim, Packing).
  *
  * Semua layar itu identik kecuali: judul, status yang difilter, dan teks
  * tombol aksi. Semuanya melakukan aksi "majukan satu langkah tanpa payload"
@@ -29,7 +29,7 @@ import { STATUS } from "../constants/order.constants";
  * @param {string} props.judul
  * @param {string} props.deskripsi
  * @param {string|string[]} props.status  status yang ditampilkan di antrian
- * @param {string} props.jenis            filter jenis opsional (DTF/POLYFLEX)
+ * @param {string} props.jenis            filter jenis opsional (DTF/POLYFLEX/SUBLIM)
  * @param {string} props.aksiLabel        teks tombol maju (mis. "Selesai Cetak")
  * @param {string} props.emptyText
  * @param {string[]} props.columns

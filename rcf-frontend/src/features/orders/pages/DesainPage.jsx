@@ -18,10 +18,12 @@ import { useMajukanStatus } from "../hooks/useOrderMutations";
 /**
  * Layar Desain (peran DESIGNER).
  *
- * Menampilkan antrian ANTRI_DESAIN untuk KEDUA jenis (DTF & Polyflex sama-sama
- * lewat tahap desain, sesuai ERD). Memajukan order dari sini menandai desain
- * selesai: designer mengisi jumlah file & total qty (dia yang tahu setelah
- * membuka kiriman pelanggan), plus catatan opsional untuk operator produksi.
+ * Menampilkan antrian ANTRI_DESAIN untuk SEMUA jenis (DTF, Polyflex, dan Sublim
+ * sama-sama lewat tahap desain, sesuai ERD). Memajukan order dari sini menandai
+ * desain selesai: designer mengisi jumlah file & total qty (dia yang tahu
+ * setelah membuka kiriman pelanggan), plus catatan opsional untuk operator
+ * produksi. Kolom Jenis ditampilkan supaya designer tahu order itu akan lanjut
+ * ke antrian mana.
  *
  * Paginasi mengikuti pola WorkQueuePage: desktop = tombol + selector limit,
  * HP = infinite scroll. (Sebelumnya hardcode limit:50 tanpa pagination —

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { setUnauthorizedHandler } from "@/shared/api/client";
 import { tokenStorage } from "@/shared/lib/token";
 import { notify } from "@/shared/lib/toast";
+import { ROUTES } from "@/shared/constants/routes";
+import { queryClient } from "@/app/queryClient";
 import { authApi } from "../api/auth.api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -22,13 +25,22 @@ export function AuthProvider({ children }) {
   const [status, setStatus] = useState(() =>
     tokenStorage.get() ? "checking" : "guest"
   );
+  const navigate = useNavigate();
 
   const logout = useCallback(() => {
     tokenStorage.clear();
+    // Buang semua cache React Query supaya user berikutnya tidak melihat
+    // data sisa sesi sebelumnya (mis. antrian desain tampil sekilas untuk
+    // user produksi yang baru login).
+    queryClient.clear();
     setUser(null);
     setStatus("guest");
     notify.info("Kamu sudah keluar.");
-  }, []);
+    // Arahkan langsung ke /login tanpa menyimpan lokasi terakhir ke
+    // state.from — kalau tidak, user baru yang login lewat form yang sama
+    // bisa terdampar di halaman yang bukan untuk role-nya.
+    navigate(ROUTES.login, { replace: true });
+  }, [navigate]);
 
   // Dipanggil interceptor axios saat ada respons 401 dari endpoint mana pun,
   // termasuk saat token kedaluwarsa di tengah pemakaian.
@@ -43,6 +55,7 @@ export function AuthProvider({ children }) {
         return "guest";
       });
       setUser(null);
+      queryClient.clear();
     });
 
     return () => setUnauthorizedHandler(null);

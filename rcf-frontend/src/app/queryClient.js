@@ -25,3 +25,11 @@ export function createQueryClient() {
     },
   });
 }
+
+/**
+ * Singleton yang dipakai seluruh aplikasi. Diekspor di sini (bukan di
+ * providers.jsx) supaya modul lain (mis. AuthProvider) bisa mengimpornya
+ * tanpa menimbulkan circular import.
+ */
+export const queryClient = createQueryClient();
+

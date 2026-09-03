@@ -9,6 +9,7 @@ export const orderKeys = {
   detail: (id) => ["orders", "detail", id],
   riwayat: (id) => ["orders", "riwayat", id],
   statistik: () => ["orders", "statistik"],
+  tertahan: (params) => ["orders", "tertahan", params],
 };
 
 /**
@@ -18,7 +19,7 @@ export const orderKeys = {
  * sampai data baru datang — tanpa ini tabel berkedip kosong tiap ketikan
  * pencarian atau ganti filter.
  *
- * Tiap layar kerja (Desain/Cetak/Polyflex/Packing) memanggil hook ini
+ * Tiap layar kerja (Desain/Cetak/Polyflex/Sublim/Packing) memanggil hook ini
  * dengan params berbeda; queryKey ikut params jadi cache-nya terpisah.
  */
 export function useOrders(params, options = {}) {
@@ -77,6 +78,22 @@ export function useOrderStatistik() {
   return useQuery({
     queryKey: orderKeys.statistik(),
     queryFn: () => orderApi.statistik(),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Order yang tertahan terlalu lama di status sekarang (panel dashboard admin).
+ *
+ * staleTime sama dengan statistik: ini angka pemantauan, bukan data transaksi —
+ * satu menit basi tidak mengubah keputusan siapa pun.
+ */
+export function useOrderTertahan({ ambang_hari, limit } = {}) {
+  const params = { ambang_hari, limit };
+
+  return useQuery({
+    queryKey: orderKeys.tertahan(params),
+    queryFn: () => orderApi.tertahan(params),
     staleTime: 60_000,
   });
 }

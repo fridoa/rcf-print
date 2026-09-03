@@ -6,6 +6,7 @@ import {
   majukanStatusSchema,
   selesaikanOrderSchema,
   koreksiStatusSchema,
+  orderTertahanQuerySchema,
 } from "./order.validator.js";
 
 const list = async (req, res, next) => {
@@ -25,9 +26,9 @@ const list = async (req, res, next) => {
       stripUnknown: true,
     });
 
-    const { items, pagination } = await orderService.list(query);
+    const { items, pagination, meta } = await orderService.list(query);
 
-    res.json({ success: true, data: items, pagination });
+    res.json({ success: true, data: items, pagination, meta });
   } catch (error) {
     next(error);
   }
@@ -54,6 +55,20 @@ const riwayat = async (req, res, next) => {
 const statistik = async (req, res, next) => {
   try {
     const data = await orderService.statistik();
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const tertahan = async (req, res, next) => {
+  try {
+    const { ambang_hari, limit } = await orderTertahanQuerySchema.validate(
+      req.query,
+      { abortEarly: false, stripUnknown: true }
+    );
+
+    const data = await orderService.tertahan({ ambangHari: ambang_hari, limit });
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -193,6 +208,7 @@ export default {
   detail,
   riwayat,
   statistik,
+  tertahan,
   create,
   update,
   remove,

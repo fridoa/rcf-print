@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   ConfirmDialog,
+  DateRangePickerField,
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuDivider,
@@ -16,13 +17,13 @@ import {
 
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
+import { formatTanggal } from "@/shared/lib/format";
 import { OrderTable } from "../components/OrderTable";
 import { SelesaikanOrderForm } from "../components/SelesaikanOrderForm";
 import { KoreksiStatusForm } from "../components/KoreksiStatusForm";
 import { OrderForm } from "../components/OrderForm";
 import { OrderDetailDialog } from "../components/OrderDetailDialog";
 import { OrderReadyWhatsappDialog } from "../components/OrderReadyWhatsappDialog";
-import { StatusBadge } from "../components/StatusBadge";
 import {
   JENIS_LIST,
   JENIS_LABEL,
@@ -60,6 +61,19 @@ const STATUS_FILTER = [
  *
  * Filter & pencarian di query string (mengikuti pola CustomerListPage &
  * UserListPage) supaya bisa di-bookmark dan tombol Back berperilaku wajar.
+ *
+ * Filter tanggal berbasis tgl_order lewat satu kalender rentang
+ * (DateRangePickerField), dan SENGAJA kosong secara default. Alasannya:
+ * halaman ini sudah menyembunyikan order SELESAI (aktif: true), jadi tanpa
+ * rentang isinya = semua kerjaan yang masih jalan — persis yang perlu
+ * dilihat, dan tidak ada yang hilang karena batas tanggal. Rentang bawaan
+ * "bulan ini" justru menyusahkan di awal bulan (tanggal 1 = rentang sehari).
+ * Kalender dipakai saat menelusuri riwayat atau saat memilih status Selesai.
+ *
+ * Kalau admin memasang rentang, backend mengabarkan berapa order belum
+ * selesai yang jatuh di luar rentang (meta.aktif_di_luar_rentang) dan halaman
+ * menawarkan menampilkannya — filter tetap jujur, tapi tidak ada kerjaan yang
+ * hilang diam-diam.
  */
 export function PesananPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +83,23 @@ export function PesananPage() {
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 10);
 
+  // Rentang tanggal murni dari URL — kosong berarti tanpa filter tanggal.
+  const rentang = {
+    dari: searchParams.get("dari") ?? "",
+    sampai: searchParams.get("sampai") ?? "",
+  };
+
+  // Order aktif di luar rentang ikut ditampilkan?
+  const sertakanLuar = searchParams.get("luar") === "1";
+
+  // Teks rentang untuk subjudul. Rentang dianggap ada hanya kalau kedua
+  // ujungnya terisi — kalender bisa berada di tengah pemilihan (baru satu
+  // klik), dan saat itu belum ada filter yang dikirim ke backend.
+  const adaRentang = Boolean(rentang.dari && rentang.sampai);
+  const labelRentang = adaRentang
+    ? `${formatTanggal(rentang.dari)} – ${formatTanggal(rentang.sampai)}`
+    : "";
+
   const [inputSearch, setInputSearch] = useState(search);
   const searchDitunda = useDebouncedValue(inputSearch);
 
@@ -77,6 +108,9 @@ export function PesananPage() {
       search,
       jenis,
       status,
+      dari: rentang.dari,
+      sampai: rentang.sampai,
+      luar: sertakanLuar ? "1" : "",
       page: String(page),
       limit: String(limit),
       ...patch,
@@ -87,6 +121,9 @@ export function PesananPage() {
     if (next.search) params.search = next.search;
     if (next.jenis) params.jenis = next.jenis;
     if (next.status) params.status = next.status;
+    if (next.dari) params.dari = next.dari;
+    if (next.sampai) params.sampai = next.sampai;
+    if (next.luar === "1") params.luar = "1";
     if (Number(next.page) > 1) params.page = next.page;
     if (Number(next.limit) !== 10) params.limit = next.limit;
 
@@ -121,6 +158,15 @@ export function PesananPage() {
     // fokus ke pekerjaan yang masih berjalan. Order selesai tetap bisa dilihat
     // dengan memilih status "Selesai" di filter (status mengalahkan aktif).
     aktif: status ? undefined : true,
+    // Rentang dikirim hanya kalau lengkap. Mengirim satu ujung saja membuat
+    // filter setengah jalan (mis. "dari 5 Agu sampai kapan pun") tepat saat
+    // admin baru mengklik tanggal pertama di kalender.
+    tgl_dari: adaRentang ? rentang.dari : undefined,
+    tgl_sampai: adaRentang ? rentang.sampai : undefined,
+    sertakan_aktif_luar: sertakanLuar || undefined,
+    // Grouping per tanggal hanya rapi kalau barisnya sudah urut per tanggal;
+    // tanpa ini satu hari bisa terpecah jadi beberapa header.
+    sort: "-tgl_order",
   };
 
   const paged = useOrders(
@@ -155,6 +201,16 @@ export function PesananPage() {
   const totalOrder = isDesktop
     ? pagination?.total
     : infinite.data?.pages[0]?.pagination?.total;
+
+  // Jaring pengaman: berapa order belum selesai yang tersaring keluar rentang.
+  const aktifDiLuar = isDesktop
+    ? paged.data?.meta?.aktif_di_luar_rentang ?? 0
+    : infinite.data?.pages[0]?.meta?.aktif_di_luar_rentang ?? 0;
+
+  // Ganti rentang lewat kalender. "luar" ikut direset: rentangnya berubah,
+  // jadi hitungan order aktif di luar rentang harus dihitung ulang dari nol.
+  const gantiRentang = ({ dari, sampai }) =>
+    setFilter({ dari, sampai, luar: "" });
 
   const gantiHalaman = (halamanBaru) =>
     setFilter({ page: String(halamanBaru) }, { resetPage: false });
@@ -207,10 +263,17 @@ export function PesananPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Order Aktif</h1>
           <p className="mt-1 text-sm text-slate-500">
+            {/* Tanpa rentang tanggal, subjudul tidak menyebut tanggal sama
+                sekali — menulis "pada semua tanggal" hanya menambah kata
+                tanpa menambah informasi. */}
             {typeof totalOrder === "number"
-              ? status
-                ? `${totalOrder} order berstatus ${STATUS_LABEL[status] ?? status}.`
-                : `${totalOrder} order aktif (yang sudah selesai disembunyikan).`
+              ? [
+                  status
+                    ? `${totalOrder} order berstatus ${STATUS_LABEL[status] ?? status}`
+                    : `${totalOrder} order aktif`,
+                  adaRentang ? ` pada ${labelRentang}` : "",
+                  status ? "." : " (yang sudah selesai disembunyikan).",
+                ].join("")
               : "Semua order RCF Print."}
           </p>
         </div>
@@ -225,8 +288,14 @@ export function PesananPage() {
         </Button>
       </header>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      {/* Baris filter: pencarian di kiri, tiga penyaring ringkas di kanan.
+          Pencarian dapat lebar tetap yang cukup untuk satu kode order penuh
+          (w-72) — bukan flex-1, karena membentang sampai sisa baris membuat
+          field kosong terlihat seperti input utama halaman. ml-auto pada grup
+          kanan yang mendorongnya ke tepi. Di HP semuanya menumpuk penuh. */}
+      <div className="mb-4 flex flex-wrap items-end gap-3">
         <TextField
+          className="w-full sm:w-72"
           label="Cari order"
           type="search"
           placeholder="Kode order (mis. DTF/220826/001)"
@@ -234,20 +303,65 @@ export function PesananPage() {
           onChange={(e) => setInputSearch(e.target.value)}
         />
 
-        <SelectField
-          label="Jenis"
-          options={JENIS_FILTER}
-          value={jenis}
-          onChange={(e) => setFilter({ jenis: e.target.value })}
-        />
+        <div className="flex w-full flex-wrap items-end gap-3 sm:ml-auto sm:w-auto">
+          <DateRangePickerField
+            className="w-full sm:w-48"
+            label="Tanggal order"
+            dari={rentang.dari}
+            sampai={rentang.sampai}
+            onChange={gantiRentang}
+          />
 
-        <SelectField
-          label="Status"
-          options={STATUS_FILTER}
-          value={status}
-          onChange={(e) => setFilter({ status: e.target.value })}
-        />
+          <SelectField
+            className="w-full sm:w-32"
+            label="Jenis"
+            options={JENIS_FILTER}
+            value={jenis}
+            onChange={(e) => setFilter({ jenis: e.target.value })}
+          />
+
+          <SelectField
+            className="w-full sm:w-36"
+            label="Status"
+            options={STATUS_FILTER}
+            value={status}
+            onChange={(e) => setFilter({ status: e.target.value })}
+          />
+        </div>
       </div>
+
+      {/* Jaring pengaman: kerjaan yang belum selesai tidak boleh hilang hanya
+          karena tanggalnya di luar rentang. Filter tetap jujur (yang tampil
+          memang sesuai rentang), tapi admin diberi tahu dan bisa menariknya. */}
+      {aktifDiLuar > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
+          <p className="text-sm text-amber-900">
+            {aktifDiLuar} order belum selesai di luar rentang ini.
+          </p>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setFilter({ luar: "1" })}
+          >
+            Tampilkan
+          </Button>
+        </div>
+      )}
+
+      {sertakanLuar && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+          <p className="text-sm text-slate-600">
+            Order belum selesai dari luar rentang ikut ditampilkan.
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setFilter({ luar: "" })}
+          >
+            Sembunyikan
+          </Button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4">
@@ -269,6 +383,7 @@ export function PesananPage() {
         ]}
         isLoading={isLoading}
         isFetching={isFetching}
+        groupByTanggal
         renderAction={(order) => (
           <div className="flex items-center justify-end gap-2">
             {order.status === STATUS.READY && (

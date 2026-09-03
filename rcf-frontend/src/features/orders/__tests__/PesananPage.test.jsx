@@ -86,9 +86,10 @@ const ORDER_ANTRI = {
   file_count: null,
 };
 
-const daftar = (items) => ({
+const daftar = (items, meta = {}) => ({
   items,
   pagination: { page: 1, limit: 20, total: items.length, totalPages: 1 },
+  meta: { aktif_di_luar_rentang: 0, ...meta },
 });
 
 function PesananRoutes() {
@@ -494,8 +495,9 @@ describe("PesananPage — koreksi status", () => {
     expect(nilai).toContain("ANTRI_CETAK");
     expect(nilai).toContain("PACKING");
     expect(nilai).not.toContain("READY");
-    // status khusus Polyflex tidak boleh muncul untuk order DTF
+    // status khusus jenis lain tidak boleh muncul untuk order DTF
     expect(nilai).not.toContain("ANTRI_CUTTING");
+    expect(nilai).not.toContain("ANTRI_SUBLIM");
   });
 
   it("mengirim id + status + alasan saat koreksi", async () => {

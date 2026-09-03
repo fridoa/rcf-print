@@ -6,7 +6,7 @@ import CounterModel from "../src/modules/orders/counter.model.js";
 import StatusLogModel from "../src/modules/orders/status-log.model.js";
 import { STATUS, JENIS } from "../src/modules/orders/order.constant.js";
 import { ROLES } from "../src/modules/auth/auth.constant.js";
-import { buatUserDanToken, buatCustomer } from "./helpers.js";
+import { buatUserDanToken, buatCustomer, buatOrder } from "./helpers.js";
 
 const URL = "/api/v1/orders";
 
@@ -172,10 +172,12 @@ describe("Order API", () => {
       expect(logs[0].status_ke).toBe(STATUS.ANTRI_DESAIN);
     });
 
-    it("menolak jenis di luar DTF/POLYFLEX", async () => {
+    it("menolak jenis di luar daftar JENIS", async () => {
       const res = await sebagai(tokenAdmin).post({
         customer_id: customer._id.toString(),
-        jenis: "SUBLIM",
+        // sengaja jenis yang tidak pernah ada; jangan pakai nama jenis nyata
+        // (SUBLIM dulu dipakai di sini lalu jadi valid, testnya jadi bohong)
+        jenis: "SABLON_MANUAL",
       });
       expect(res.status).toBe(400);
     });
@@ -321,6 +323,53 @@ describe("Order API", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe(STATUS.ANTRI_CUTTING);
+    });
+  });
+
+  describe("PATCH /orders/:id/status — alur SUBLIM", () => {
+    it("lewat desain dulu, lalu ANTRI_SUBLIM (bukan cetak/cutting)", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.SUBLIM });
+      expect(order.status).toBe(STATUS.ANTRI_DESAIN);
+
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.status).toBe(STATUS.ANTRI_SUBLIM);
+    });
+
+    it("kode order memakai prefix SBL", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.SUBLIM });
+      expect(order.kode_order).toMatch(/^SBL\/\d{6}\/\d{3}$/);
+    });
+
+    it("PRODUKSI memajukan ANTRI_SUBLIM ke PACKING, lalu PACKING ke READY", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.SUBLIM });
+      await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
+
+      const kePacking = await sebagai(tokenProduksi).patch(
+        `/${order._id}/status`,
+        {}
+      );
+      expect(kePacking.status).toBe(200);
+      expect(kePacking.body.data.status).toBe(STATUS.PACKING);
+
+      const keReady = await sebagai(tokenPacking).patch(
+        `/${order._id}/status`,
+        {}
+      );
+      expect(keReady.status).toBe(200);
+      expect(keReady.body.data.status).toBe(STATUS.READY);
+    });
+
+    it("menolak koreksi ke ANTRI_CETAK karena bukan bagian alur SUBLIM", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.SUBLIM });
+
+      const res = await sebagai(tokenAdmin).patch(`/${order._id}/koreksi`, {
+        status: STATUS.ANTRI_CETAK,
+        catatan: "salah pilih langkah produksi",
+      });
+
+      expect(res.status).toBe(400);
     });
   });
 
@@ -539,6 +588,325 @@ describe("Order API", () => {
     it("menolak limit di atas 100 dan sort tidak dikenal", async () => {
       expect((await sebagai(tokenAdmin).get("?limit=500")).status).toBe(400);
       expect((await sebagai(tokenAdmin).get("?sort=whatsapp")).status).toBe(400);
+    });
+  });
+
+  describe("GET /orders — filter rentang tanggal", () => {
+    // Tanggal dibuat langsung lewat model supaya tgl_order bisa diatur ke masa
+    // lalu (jalur API selalu memakai hari ini).
+    const HARI_INI = new Date("2026-08-22T00:00:00+07:00");
+    const SEMINGGU_LALU = new Date("2026-08-16T00:00:00+07:00");
+    const BULAN_LALU = new Date("2026-07-10T00:00:00+07:00");
+
+    /** buatOrder + field wajib yang tak punya default (customer & pembuat). */
+    const buatOrderTgl = (override) =>
+      buatOrder({
+        customer_id: customer._id,
+        created_by: adminUser._id,
+        ...override,
+      });
+
+    beforeEach(async () => {
+      await buatOrderTgl({
+        kode_order: "DTF/220826/901",
+        tgl_order: HARI_INI,
+        status: STATUS.ANTRI_DESAIN,
+      });
+      await buatOrderTgl({
+        kode_order: "DTF/160826/902",
+        tgl_order: SEMINGGU_LALU,
+        status: STATUS.SELESAI,
+      });
+      // Order LAMA yang belum selesai — ini yang tidak boleh hilang.
+      await buatOrderTgl({
+        kode_order: "DTF/100726/903",
+        tgl_order: BULAN_LALU,
+        status: STATUS.ANTRI_CETAK,
+      });
+    });
+
+    it("menyaring order dalam rentang tgl_dari s/d tgl_sampai (inklusif)", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-16&tgl_sampai=2026-08-22"
+      );
+
+      expect(res.status).toBe(200);
+      const kode = res.body.data.map((o) => o.kode_order);
+      expect(kode).toContain("DTF/220826/901");
+      expect(kode).toContain("DTF/160826/902");
+      expect(kode).not.toContain("DTF/100726/903");
+    });
+
+    it("batas rentang inklusif di kedua ujung (satu hari saja)", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-22&tgl_sampai=2026-08-22"
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].kode_order).toBe("DTF/220826/901");
+    });
+
+    it("menghitung order belum selesai yang jatuh di luar rentang", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-16&tgl_sampai=2026-08-22"
+      );
+
+      // DTF/100726/903 (ANTRI_CETAK, bulan lalu) ada di luar rentang.
+      expect(res.body.meta.aktif_di_luar_rentang).toBe(1);
+    });
+
+    it("tidak menghitung order SELESAI di luar rentang", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-22&tgl_sampai=2026-08-22"
+      );
+
+      // Di luar rentang ada 2 order: satu SELESAI, satu ANTRI_CETAK.
+      expect(res.body.meta.aktif_di_luar_rentang).toBe(1);
+    });
+
+    it("sertakan_aktif_luar=true memunculkan order belum selesai dari luar rentang", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-22&tgl_sampai=2026-08-22&sertakan_aktif_luar=true"
+      );
+
+      expect(res.status).toBe(200);
+      const kode = res.body.data.map((o) => o.kode_order);
+      expect(kode).toContain("DTF/220826/901");
+      expect(kode).toContain("DTF/100726/903");
+      // Yang SELESAI di luar rentang tetap tidak ikut.
+      expect(kode).not.toContain("DTF/160826/902");
+      // Sudah ditampilkan → tidak perlu diberitahu lagi.
+      expect(res.body.meta.aktif_di_luar_rentang).toBe(0);
+    });
+
+    it("tanpa rentang, meta.aktif_di_luar_rentang = 0", async () => {
+      const res = await sebagai(tokenAdmin).get();
+      expect(res.body.meta.aktif_di_luar_rentang).toBe(0);
+    });
+
+    it("tidak menghitung aktif di luar rentang saat status dikunci pemanggil", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-22&tgl_sampai=2026-08-22&status=SELESAI"
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta.aktif_di_luar_rentang).toBe(0);
+    });
+
+    it("rentang tetap menghormati filter lain (jenis)", async () => {
+      await buatOrderTgl({
+        kode_order: "PLF/220826/904",
+        jenis: JENIS.POLYFLEX,
+        tgl_order: HARI_INI,
+        status: STATUS.ANTRI_DESAIN,
+      });
+
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-22&tgl_sampai=2026-08-22&jenis=POLYFLEX"
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].kode_order).toBe("PLF/220826/904");
+    });
+
+    it("menolak rentang terbalik dengan 400", async () => {
+      const res = await sebagai(tokenAdmin).get(
+        "?tgl_dari=2026-08-22&tgl_sampai=2026-08-16"
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("menolak tanggal tidak valid dengan 400", async () => {
+      expect(
+        (await sebagai(tokenAdmin).get("?tgl_dari=bukan-tanggal")).status
+      ).toBe(400);
+    });
+
+    it("menerima sort tgl_order", async () => {
+      const naik = await sebagai(tokenAdmin).get("?sort=tgl_order");
+      const turun = await sebagai(tokenAdmin).get("?sort=-tgl_order");
+
+      expect(naik.status).toBe(200);
+      expect(turun.status).toBe(200);
+      expect(naik.body.data[0].kode_order).toBe("DTF/100726/903");
+      expect(turun.body.data[0].kode_order).toBe("DTF/220826/901");
+    });
+  });
+
+  describe("GET /orders/tertahan", () => {
+    /** buatOrder + field wajib yang tak punya default. */
+    const buatOrderTertahan = (override) =>
+      buatOrder({
+        customer_id: customer._id,
+        created_by: adminUser._id,
+        ...override,
+      });
+
+    /** Timestamp N hari lalu, untuk mengatur status_sejak secara eksplisit. */
+    const hariLalu = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+    it("mencakup semua status non-final, bukan cuma READY", async () => {
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/801",
+        status: STATUS.ANTRI_DESAIN,
+        status_sejak: hariLalu(5),
+      });
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/802",
+        status: STATUS.ANTRI_CETAK,
+        status_sejak: hariLalu(6),
+      });
+      await buatOrderTertahan({
+        kode_order: "PLF/010826/803",
+        jenis: JENIS.POLYFLEX,
+        status: STATUS.ANTRI_CUTTING,
+        status_sejak: hariLalu(7),
+      });
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/804",
+        status: STATUS.PACKING,
+        status_sejak: hariLalu(8),
+      });
+      await buatOrderTertahan({
+        kode_order: "SBL/010826/805",
+        jenis: JENIS.SUBLIM,
+        status: STATUS.ANTRI_SUBLIM,
+        status_sejak: hariLalu(9),
+      });
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/806",
+        status: STATUS.READY,
+        status_sejak: hariLalu(10),
+      });
+
+      const res = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=3");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(6);
+      expect(res.body.data.per_status).toMatchObject({
+        ANTRI_DESAIN: 1,
+        ANTRI_CETAK: 1,
+        ANTRI_CUTTING: 1,
+        ANTRI_SUBLIM: 1,
+        PACKING: 1,
+        READY: 1,
+      });
+    });
+
+    it("setiap baris menyebut order mana dan status apa", async () => {
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/807",
+        status: STATUS.PACKING,
+        status_sejak: hariLalu(5),
+      });
+
+      const res = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=3");
+
+      const baris = res.body.data.items[0];
+      expect(baris.kode_order).toBe("DTF/010826/807");
+      expect(baris.status).toBe(STATUS.PACKING);
+      expect(baris.status_sejak).toBeTruthy();
+      expect(baris.customer_id.name).toBe(customer.name);
+    });
+
+    it("mengabaikan order yang baru pindah status meski tgl_order-nya lama", async () => {
+      // Inti fitur: umur dihitung dari status_sejak, bukan tgl_order. Order ini
+      // dibuat sebulan lalu tapi tadi baru maju ke PACKING — tidak tertahan.
+      await buatOrderTertahan({
+        kode_order: "DTF/100726/807",
+        tgl_order: new Date("2026-07-10T00:00:00+07:00"),
+        status: STATUS.PACKING,
+        status_sejak: hariLalu(0),
+      });
+
+      const res = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=3");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(0);
+    });
+
+    it("tidak menghitung order SELESAI meski lama tak tersentuh", async () => {
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/808",
+        status: STATUS.SELESAI,
+        status_sejak: hariLalu(30),
+        selesai_at: hariLalu(30),
+      });
+
+      const res = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=3");
+
+      expect(res.body.data.total).toBe(0);
+      expect(res.body.data.per_status.SELESAI).toBeUndefined();
+    });
+
+    it("ambang_hari menyaring: order 4 hari lolos ambang 3 tapi tidak ambang 7", async () => {
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/809",
+        status: STATUS.ANTRI_DESAIN,
+        status_sejak: hariLalu(4),
+      });
+
+      const ambang3 = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=3");
+      const ambang7 = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=7");
+
+      expect(ambang3.body.data.total).toBe(1);
+      expect(ambang7.body.data.total).toBe(0);
+    });
+
+    it("total tetap penuh meski items dibatasi limit", async () => {
+      for (let i = 0; i < 4; i += 1) {
+        await buatOrderTertahan({
+          kode_order: `DTF/010826/81${i}`,
+          status: STATUS.PACKING,
+          status_sejak: hariLalu(5 + i),
+        });
+      }
+
+      const res = await sebagai(tokenAdmin).get(
+        "/tertahan?ambang_hari=3&limit=2"
+      );
+
+      expect(res.body.data.items).toHaveLength(2);
+      expect(res.body.data.total).toBe(4);
+      expect(res.body.data.per_status.PACKING).toBe(4);
+    });
+
+    it("mengurutkan yang paling lama tertahan di atas", async () => {
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/821",
+        status: STATUS.ANTRI_CETAK,
+        status_sejak: hariLalu(4),
+      });
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/822",
+        status: STATUS.READY,
+        status_sejak: hariLalu(9),
+      });
+
+      const res = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=3");
+
+      expect(res.body.data.items[0].kode_order).toBe("DTF/010826/822");
+    });
+
+    it("menolak ambang_hari 0 dengan 400", async () => {
+      const res = await sebagai(tokenAdmin).get("/tertahan?ambang_hari=0");
+      expect(res.status).toBe(400);
+    });
+
+    it("memakai ambang default 3 hari saat query kosong", async () => {
+      await buatOrderTertahan({
+        kode_order: "DTF/010826/831",
+        status: STATUS.ANTRI_DESAIN,
+        status_sejak: hariLalu(5),
+      });
+
+      const res = await sebagai(tokenAdmin).get("/tertahan");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.ambang_hari).toBe(3);
+      expect(res.body.data.total).toBe(1);
     });
   });
 

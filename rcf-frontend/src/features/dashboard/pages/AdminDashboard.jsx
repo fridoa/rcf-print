@@ -12,6 +12,7 @@ import { useOrderStatistik, STATUS, STATUS_LABEL } from "@/features/orders";
 import { useAuth } from "@/features/auth";
 import { ROUTES } from "@/shared/constants/routes";
 import { DashboardShell, Panel } from "../components/DashboardShell";
+import { OrderTertahanPanel } from "../components/OrderTertahanPanel";
 import {
   donutAktif,
   STATUS_BAR,
@@ -38,6 +39,7 @@ export function AdminDashboard() {
     STATUS.ANTRI_DESAIN,
     STATUS.ANTRI_CETAK,
     STATUS.ANTRI_CUTTING,
+    STATUS.ANTRI_SUBLIM,
     STATUS.PACKING,
     STATUS.READY,
   ].map((st) => ({
@@ -103,6 +105,11 @@ export function AdminDashboard() {
           </div>
         </Panel>
       </div>
+
+      {/* Ditaruh setelah corong antrian: corong menunjukkan DI MANA beban
+          menumpuk, panel ini menunjuk order spesifik yang tertahan beserta
+          sebabnya. Urutan itu yang cocok dengan cara admin membaca halaman. */}
+      <OrderTertahanPanel />
     </DashboardShell>
   );
 }

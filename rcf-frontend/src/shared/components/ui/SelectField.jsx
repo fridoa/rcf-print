@@ -11,7 +11,20 @@ import { cn } from "@/shared/lib/cn";
  * pertama yang jadi default bawaan browser.
  */
 export const SelectField = forwardRef(function SelectField(
-  { label, error, hint, options = [], placeholder, className, id, ...props },
+  {
+    label,
+    // Label tetap dirender untuk screen reader tapi disembunyikan secara
+    // visual. Dipakai kalau konteksnya sudah jelas dari judul panel di
+    // sekitarnya dan label kedua cuma menambah keramaian.
+    hideLabel = false,
+    error,
+    hint,
+    options = [],
+    placeholder,
+    className,
+    id,
+    ...props
+  },
   ref
 ) {
   const generatedId = useId();
@@ -25,7 +38,13 @@ export const SelectField = forwardRef(function SelectField(
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={inputId} className="text-sm font-medium text-slate-700">
+      <label
+        htmlFor={inputId}
+        className={cn(
+          "text-sm font-medium text-slate-700",
+          hideLabel && "sr-only"
+        )}
+      >
         {label}
       </label>
 

@@ -15,7 +15,9 @@ import { DashboardShell, Panel } from "../components/DashboardShell";
  * Props:
  *   peranLabel : teks sapaan ("desain", "produksi", "packing").
  *   tugas      : [{ status, label, tone, hrefRoute }] — kartu tugas utama.
- *                nilai diambil dari perStatus[status].count.
+ *                `status` boleh satu status atau array status; kalau array,
+ *                nilainya dijumlahkan (mis. kartu "diteruskan ke produksi"
+ *                yang mencakup cetak + cutting + sublim).
  *   ctaLabel/ctaRoute : tombol menuju layar kerja.
  */
 export function QueueDashboard({ peranLabel, tugas = [], donutItems }) {
@@ -24,14 +26,24 @@ export function QueueDashboard({ peranLabel, tugas = [], donutItems }) {
   const { data, isLoading, isError, error } = useOrderStatistik();
 
   const perStatus = data?.perStatus ?? {};
-  const totalTugas = tugas.reduce(
-    (acc, t) => acc + (perStatus[t.status]?.count ?? 0),
-    0
-  );
+
+  // Satu kartu bisa mewakili beberapa status sekaligus. Dijumlahkan di sini
+  // supaya label seperti "cetak/cutting/sublim" benar-benar cocok dengan
+  // angkanya — sebelumnya kartu semacam itu hanya menghitung status pertama.
+  const hitung = (status) =>
+    (Array.isArray(status) ? status : [status]).reduce(
+      (acc, s) => acc + (perStatus[s]?.count ?? 0),
+      0
+    );
+
+  const idTugas = (t) =>
+    Array.isArray(t.status) ? t.status.join("+") : t.status;
+
+  const totalTugas = tugas.reduce((acc, t) => acc + hitung(t.status), 0);
 
   const donut = (donutItems ?? tugas).map((t) => ({
     label: t.label,
-    value: perStatus[t.status]?.count ?? 0,
+    value: hitung(t.status),
     color: t.color,
   }));
 
@@ -46,9 +58,9 @@ export function QueueDashboard({ peranLabel, tugas = [], donutItems }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tugas.map((t) => (
           <StatTile
-            key={t.status}
+            key={idTugas(t)}
             label={t.label}
-            value={perStatus[t.status]?.count ?? 0}
+            value={hitung(t.status)}
             sub={t.sub}
             icon={t.icon}
             tone={t.tone ?? "brand"}

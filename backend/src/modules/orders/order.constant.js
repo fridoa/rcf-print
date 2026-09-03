@@ -10,14 +10,16 @@
 export const JENIS = {
   DTF: "DTF",
   POLYFLEX: "POLYFLEX",
+  SUBLIM: "SUBLIM",
 };
 
 export const JENIS_LIST = Object.values(JENIS);
 
-/** Prefix nomor order per jenis: DTF → "DTF", POLYFLEX → "PLF". */
+/** Prefix nomor order per jenis: DTF → "DTF", POLYFLEX → "PLF", SUBLIM → "SBL". */
 export const PREFIX_JENIS = {
   [JENIS.DTF]: "DTF",
   [JENIS.POLYFLEX]: "PLF",
+  [JENIS.SUBLIM]: "SBL",
 };
 
 /** Metode pembayaran, dicatat saat serah terima (READY → SELESAI). */
@@ -28,11 +30,12 @@ export const METODE_BAYAR = {
 
 export const METODE_BAYAR_LIST = Object.values(METODE_BAYAR);
 
-/** Status order. Nilai sama untuk kedua jenis kecuali langkah produksi. */
+/** Status order. Nilai sama untuk semua jenis kecuali langkah produksi. */
 export const STATUS = {
   ANTRI_DESAIN: "ANTRI_DESAIN",
   ANTRI_CETAK: "ANTRI_CETAK", // hanya DTF
   ANTRI_CUTTING: "ANTRI_CUTTING", // hanya POLYFLEX
+  ANTRI_SUBLIM: "ANTRI_SUBLIM", // hanya SUBLIM
   PACKING: "PACKING",
   READY: "READY",
   SELESAI: "SELESAI",
@@ -42,9 +45,10 @@ export const STATUS_LIST = Object.values(STATUS);
 
 /**
  * Alur maju per jenis. Urutan array = urutan langkah; transisi normal hanya
- * boleh pindah ke elemen persis setelahnya. Perbedaan tunggal antara kedua
- * jalur adalah langkah produksi (ANTRI_CETAK untuk DTF, ANTRI_CUTTING untuk
- * POLYFLEX) — sisanya identik.
+ * boleh pindah ke elemen persis setelahnya. Perbedaan tunggal antar jalur
+ * adalah langkah produksi (ANTRI_CETAK untuk DTF, ANTRI_CUTTING untuk
+ * POLYFLEX, ANTRI_SUBLIM untuk SUBLIM) — sisanya identik: semua lewat desain
+ * dulu, lalu PACKING → READY → SELESAI.
  */
 export const ALUR = {
   [JENIS.DTF]: [
@@ -61,6 +65,13 @@ export const ALUR = {
     STATUS.READY,
     STATUS.SELESAI,
   ],
+  [JENIS.SUBLIM]: [
+    STATUS.ANTRI_DESAIN,
+    STATUS.ANTRI_SUBLIM,
+    STATUS.PACKING,
+    STATUS.READY,
+    STATUS.SELESAI,
+  ],
 };
 
 /**
@@ -69,7 +80,7 @@ export const ALUR = {
  * (menyelesaikan order dan koreksi mundur) yang ditangani terpisah di service.
  *
  * - DESIGNER  : ANTRI_DESAIN → langkah produksi (menandai desain selesai)
- * - PRODUKSI  : langkah produksi → PACKING (selesai cetak/cutting)
+ * - PRODUKSI  : langkah produksi → PACKING (selesai cetak/cutting/sublim)
  * - PACKING   : PACKING → READY (selesai packing)
  *
  * READY → SELESAI sengaja TIDAK ada di sini: itu penyelesaian order (catat
@@ -79,5 +90,6 @@ export const TRANSISI_ROLE = {
   [STATUS.ANTRI_DESAIN]: "DESIGNER",
   [STATUS.ANTRI_CETAK]: "PRODUKSI",
   [STATUS.ANTRI_CUTTING]: "PRODUKSI",
+  [STATUS.ANTRI_SUBLIM]: "PRODUKSI",
   [STATUS.PACKING]: "PACKING",
 };

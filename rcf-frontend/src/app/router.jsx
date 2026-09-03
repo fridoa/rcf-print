@@ -14,6 +14,7 @@ import {
   DesainPage,
   CetakPage,
   PolyflexPage,
+  SublimPage,
   PackingPage,
 } from "@/features/orders";
 import { RekapPage } from "@/features/rekap";
@@ -70,6 +71,7 @@ export function AppRouter() {
           <Route path={ROUTES.desain} element={<DesainPage />} />
           <Route path={ROUTES.cetak} element={<CetakPage />} />
           <Route path={ROUTES.polyflex} element={<PolyflexPage />} />
+          <Route path={ROUTES.sublim} element={<SublimPage />} />
           <Route path={ROUTES.packing} element={<PackingPage />} />
 
           {/*

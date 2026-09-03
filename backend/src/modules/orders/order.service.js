@@ -55,7 +55,7 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * @param {string} [input.customer_id]  pelanggan lama yang sudah dipilih
  * @param {object} [input.customer]     { whatsapp, name?, note? } untuk
  *                                       find-or-create by nomor (input 1 langkah)
- * @param {"DTF"|"POLYFLEX"} input.jenis
+ * @param {"DTF"|"POLYFLEX"|"SUBLIM"} input.jenis
  * @param {string} input.created_by  id user pembuat
  * @param {Date}   [input.deadline]
  * @param {string} [input.catatan]
@@ -104,6 +104,7 @@ const create = async ({
     tgl_order,
     seq_harian,
     status: STATUS.ANTRI_DESAIN,
+    status_sejak: now,
     deadline: deadline ?? null,
     catatan: catatan ?? "",
     created_by,
@@ -129,12 +130,22 @@ const create = async ({
  * Daftar order dengan filter + paginasi.
  *
  * Filter yang didukung mengikuti kebutuhan tiap layar mockup:
- * - jenis            : DTF / POLYFLEX
+ * - jenis            : DTF / POLYFLEX / SUBLIM
  * - status           : satu status, atau daftar status (untuk layar produksi)
  * - aktif=true       : semua status kecuali SELESAI (daftar order aktif)
  * - customer_id      : riwayat pelanggan
  * - search           : cari kode_order (case-insensitive)
  * - tgl              : order pada satu hari WIB tertentu (Data Order)
+ * - tgl_dari/sampai  : rentang hari WIB (halaman Pesanan: 7 Hari/Bulan Ini)
+ *
+ * Jaring pengaman rentang tanggal: order yang BELUM selesai tidak boleh hilang
+ * dari halaman Pesanan hanya karena tanggalnya di luar rentang — itu justru
+ * pekerjaan yang paling perlu dilihat. Karena itu:
+ *   - meta.aktif_di_luar_rentang menghitung berapa order non-SELESAI yang
+ *     tersaring keluar oleh rentang (0 kalau tidak ada rentang);
+ *   - sertakan_aktif_luar=true memasukkan mereka ke hasil ($or rentang ATAU
+ *     order aktif), supaya admin bisa menampilkannya tanpa melebarkan rentang.
+ * Filter tanggal tetap jujur secara default; keputusan menampilkan ada di FE.
  */
 const list = async ({
   jenis,
@@ -144,6 +155,9 @@ const list = async ({
   customer_id,
   search,
   tgl,
+  tgl_dari,
+  tgl_sampai,
+  sertakan_aktif_luar,
   page,
   limit,
   sort,
@@ -166,23 +180,59 @@ const list = async ({
     filter.kode_order = { $regex: escapeRegex(search), $options: "i" };
   }
 
+  // Rentang tanggal terpisah dari `filter` supaya bisa dipasang sebagai $or
+  // bersama syarat "order aktif" tanpa mengganggu filter lain.
+  let rentangTgl;
   if (tgl) {
     const target = new Date(tgl);
-    filter.tgl_order = {
+    rentangTgl = {
       $gte: awalHariJakarta(target),
       $lt: awalHariBerikutnyaJakarta(target),
     };
+  } else if (tgl_dari || tgl_sampai) {
+    rentangTgl = {};
+    if (tgl_dari) rentangTgl.$gte = awalHariJakarta(new Date(tgl_dari));
+    if (tgl_sampai) {
+      rentangTgl.$lt = awalHariBerikutnyaJakarta(new Date(tgl_sampai));
+    }
+  }
+
+  // Syarat "belum selesai" dipakai dua kali (hitung & $or), jadi dinamai.
+  const belumSelesai = { status: { $ne: STATUS.SELESAI } };
+
+  // Hitungan jaring pengaman hanya bermakna saat admin TIDAK mengunci status
+  // sendiri. Kalau dia memilih status=SELESAI (atau daftar status di layar
+  // produksi), "order aktif di luar rentang" bukan informasi yang dia minta.
+  const statusDikunci = Boolean(status || (statusIn && statusIn.length > 0));
+
+  const filterAkhir = { ...filter };
+  if (rentangTgl) {
+    if (sertakan_aktif_luar) {
+      // Di dalam rentang, ATAU belum selesai (berapa pun tanggalnya).
+      filterAkhir.$or = [{ tgl_order: rentangTgl }, belumSelesai];
+    } else {
+      filterAkhir.tgl_order = rentangTgl;
+    }
   }
 
   const skip = (page - 1) * limit;
 
-  const [items, total] = await Promise.all([
-    OrderModel.find(filter)
+  const [items, total, aktifDiLuarRentang] = await Promise.all([
+    OrderModel.find(filterAkhir)
       .populate("customer_id", "name whatsapp")
       .sort(sort)
       .skip(skip)
       .limit(limit),
-    OrderModel.countDocuments(filter),
+    OrderModel.countDocuments(filterAkhir),
+    // Hanya relevan saat ada rentang, order luar rentang belum disertakan, dan
+    // status tidak dikunci pemanggil.
+    rentangTgl && !sertakan_aktif_luar && !statusDikunci
+      ? OrderModel.countDocuments({
+          ...filter,
+          ...belumSelesai,
+          tgl_order: { $not: rentangTgl },
+        })
+      : 0,
   ]);
 
   return {
@@ -192,6 +242,9 @@ const list = async ({
       limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    meta: {
+      aktif_di_luar_rentang: aktifDiLuarRentang,
     },
   };
 };
@@ -219,8 +272,9 @@ const statusSetelah = (jenis, status) => {
  * Majukan status order satu langkah sesuai jalur jenisnya.
  *
  * Dipakai untuk transisi non-final:
- *   ANTRI_DESAIN → ANTRI_CETAK/ANTRI_CUTTING  (DESIGNER, wajib file_count+qty)
- *   ANTRI_CETAK/ANTRI_CUTTING → PACKING        (PRODUKSI)
+ *   ANTRI_DESAIN → ANTRI_CETAK/ANTRI_CUTTING/ANTRI_SUBLIM
+ *                                              (DESIGNER, wajib file_count+qty)
+ *   ANTRI_CETAK/ANTRI_CUTTING/ANTRI_SUBLIM → PACKING   (PRODUKSI)
  *   PACKING → READY                            (PACKING)
  *
  * READY → SELESAI TIDAK lewat sini — itu penyelesaian order (lihat selesaikan).
@@ -275,6 +329,7 @@ const majukanStatus = async (id, aktor, payload = {}) => {
   }
 
   order.status = berikutnya;
+  order.status_sejak = new Date();
   await order.save();
 
   await StatusLogModel.create({
@@ -313,6 +368,7 @@ const selesaikan = async (id, aktor, { total_harga, metode_bayar, catatan }) => 
   order.total_harga = total_harga;
   order.metode_bayar = metode_bayar;
   order.selesai_at = new Date();
+  order.status_sejak = order.selesai_at;
   if (catatan !== undefined) order.catatan = catatan;
   await order.save();
 
@@ -354,6 +410,7 @@ const koreksiStatus = async (id, aktor, { status, catatan }) => {
 
   const statusDari = order.status;
   order.status = status;
+  order.status_sejak = new Date();
 
   // Kalau dikoreksi keluar dari SELESAI, batalkan jejak penyelesaian supaya
   // rekap tidak menghitung uang untuk order yang tidak lagi selesai.
@@ -394,7 +451,7 @@ const getRiwayat = async (id) => {
  *
  * Bentuk hasil:
  *   perStatus  : { ANTRI_DESAIN: {count, qty}, ... } untuk SEMUA status non-final
- *   perStatusJenis : rincian antrian produksi per jenis (DTF/POLYFLEX)
+ *   perStatusJenis : rincian antrian produksi per jenis (DTF/POLYFLEX/SUBLIM)
  *   aktifTotal : jumlah order belum SELESAI
  *   overdue    : order aktif yang deadline-nya sudah lewat (< awal hari ini)
  *   hariIni    : { orderBaru, selesai, pendapatan } berbasis WIB
@@ -426,7 +483,7 @@ const statistik = async () => {
   }
 
   // Antrian produksi dipecah per jenis: DESIGNER/PRODUKSI ingin tahu berapa
-  // DTF vs POLYFLEX yang menunggu di langkah masing-masing.
+  // DTF vs POLYFLEX vs SUBLIM yang menunggu di langkah masing-masing.
   const perStatusJenisAgg = await OrderModel.aggregate([
     {
       $match: {
@@ -435,6 +492,7 @@ const statistik = async () => {
             STATUS.ANTRI_DESAIN,
             STATUS.ANTRI_CETAK,
             STATUS.ANTRI_CUTTING,
+            STATUS.ANTRI_SUBLIM,
             STATUS.PACKING,
           ],
         },
@@ -495,6 +553,67 @@ const statistik = async () => {
       selesai: selesaiHariIni,
       pendapatan: uangHariIni[0]?.total ?? 0,
     },
+  };
+};
+
+/**
+ * Order yang tertahan: belum SELESAI dan sudah terlalu lama di status yang
+ * sekarang — di status APA PUN, karena order bisa mengendap di desain, cetak,
+ * cutting, packing, atau menganggur di READY karena belum diambil.
+ *
+ * Bentuknya sengaja mirip "lewat deadline": satu daftar order konkret, tiap
+ * baris menyebut order mana dan sedang berhenti di langkah mana. Angka agregat
+ * per status disertakan (`per_status`) supaya admin bisa melihat langkah mana
+ * yang jadi sumbat tanpa menghitung baris.
+ *
+ * Ambang dihitung dari status_sejak, bukan tgl_order: order dua minggu lalu
+ * yang tadi pagi masuk PACKING sedang berjalan normal, sementara order tiga
+ * hari lalu yang tak bergerak sejak dibuat justru masalahnya.
+ *
+ * @param {object} opsi
+ * @param {number} opsi.ambangHari  Umur minimum di status sekarang (default 3)
+ * @param {number} opsi.limit       Maksimum baris daftar (default 8)
+ */
+const tertahan = async ({ ambangHari = 3, limit = 8 } = {}) => {
+  const batas = new Date(Date.now() - ambangHari * 24 * 60 * 60 * 1000);
+
+  const filter = {
+    status: { $ne: STATUS.SELESAI },
+    status_sejak: { $lt: batas },
+  };
+
+  // Daftar dibatasi `limit` supaya panel dashboard tetap ringkas, tapi hitungan
+  // per status memakai agregasi penuh — admin perlu tahu totalnya, bukan cuma
+  // yang tampil ("+3 lainnya").
+  const [items, perStatusAgg] = await Promise.all([
+    OrderModel.find(filter)
+      .populate({ path: "customer_id", select: "name whatsapp" })
+      .select("kode_order jenis status status_sejak tgl_order deadline total_qty")
+      .sort({ status_sejak: 1 }) // paling lama tertahan di atas
+      .limit(limit),
+    OrderModel.aggregate([
+      { $match: filter },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  // Semua status non-final selalu ada sebagai kunci (count 0 kalau bersih),
+  // supaya FE tidak perlu menebak status mana yang absen dari respons.
+  const perStatus = {};
+  for (const s of Object.values(STATUS)) {
+    if (s !== STATUS.SELESAI) perStatus[s] = 0;
+  }
+  let total = 0;
+  for (const row of perStatusAgg) {
+    if (row._id in perStatus) perStatus[row._id] = row.count;
+    total += row.count;
+  }
+
+  return {
+    ambang_hari: ambangHari,
+    total,
+    per_status: perStatus,
+    items,
   };
 };
 
@@ -573,5 +692,6 @@ export default {
   koreksiStatus,
   getRiwayat,
   statistik,
+  tertahan,
 };
 

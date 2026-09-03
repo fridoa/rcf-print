@@ -9,6 +9,7 @@
 export const JENIS = {
   DTF: "DTF",
   POLYFLEX: "POLYFLEX",
+  SUBLIM: "SUBLIM",
 };
 
 export const JENIS_LIST = Object.values(JENIS);
@@ -16,6 +17,7 @@ export const JENIS_LIST = Object.values(JENIS);
 export const JENIS_LABEL = {
   DTF: "DTF",
   POLYFLEX: "Polyflex",
+  SUBLIM: "Sublim",
 };
 
 export const METODE_BAYAR = {
@@ -34,6 +36,7 @@ export const STATUS = {
   ANTRI_DESAIN: "ANTRI_DESAIN",
   ANTRI_CETAK: "ANTRI_CETAK",
   ANTRI_CUTTING: "ANTRI_CUTTING",
+  ANTRI_SUBLIM: "ANTRI_SUBLIM",
   PACKING: "PACKING",
   READY: "READY",
   SELESAI: "SELESAI",
@@ -44,8 +47,9 @@ export const STATUS_LIST = Object.values(STATUS);
 /**
  * Alur status per jenis — mirror backend order.constant.js ALUR.
  * Dipakai form Koreksi untuk hanya menawarkan status yang sah bagi jenis
- * order itu (DTF pakai ANTRI_CETAK, Polyflex pakai ANTRI_CUTTING). Backend
- * menolak status di luar daftar ini, jadi FE menyaringnya lebih dulu.
+ * order itu (DTF pakai ANTRI_CETAK, Polyflex pakai ANTRI_CUTTING, Sublim pakai
+ * ANTRI_SUBLIM). Backend menolak status di luar daftar ini, jadi FE
+ * menyaringnya lebih dulu.
  */
 export const ALUR = {
   [JENIS.DTF]: [
@@ -62,6 +66,13 @@ export const ALUR = {
     STATUS.READY,
     STATUS.SELESAI,
   ],
+  [JENIS.SUBLIM]: [
+    STATUS.ANTRI_DESAIN,
+    STATUS.ANTRI_SUBLIM,
+    STATUS.PACKING,
+    STATUS.READY,
+    STATUS.SELESAI,
+  ],
 };
 
 /** Label ramah untuk badge & filter. */
@@ -69,6 +80,7 @@ export const STATUS_LABEL = {
   ANTRI_DESAIN: "Antri Desain",
   ANTRI_CETAK: "Antri Cetak",
   ANTRI_CUTTING: "Antri Cutting",
+  ANTRI_SUBLIM: "Antri Sublim",
   PACKING: "Packing",
   READY: "Siap Diambil",
   SELESAI: "Selesai",
@@ -77,11 +89,16 @@ export const STATUS_LABEL = {
 /**
  * Warna badge per status (kelas Tailwind). Dipisah dari label supaya
  * StatusBadge tinggal memetakan tanpa switch panjang.
+ *
+ * Ketiga langkah produksi (cetak/cutting/sublim) sengaja diberi rona berbeda:
+ * di daftar campur seperti halaman Pesanan, warna yang sama membuat tiga
+ * antrian berbeda terlihat seperti satu.
  */
 export const STATUS_TONE = {
   ANTRI_DESAIN: "bg-amber-100 text-amber-800",
   ANTRI_CETAK: "bg-sky-100 text-sky-800",
-  ANTRI_CUTTING: "bg-sky-100 text-sky-800",
+  ANTRI_CUTTING: "bg-indigo-100 text-indigo-800",
+  ANTRI_SUBLIM: "bg-teal-100 text-teal-800",
   PACKING: "bg-violet-100 text-violet-800",
   READY: "bg-emerald-100 text-emerald-800",
   SELESAI: "bg-slate-200 text-slate-600",

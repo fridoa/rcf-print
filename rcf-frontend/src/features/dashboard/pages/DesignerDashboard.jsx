@@ -20,8 +20,15 @@ export function DesignerDashboard() {
           color: STATUS_HEX[STATUS.ANTRI_DESAIN],
         },
         {
-          status: STATUS.ANTRI_CETAK,
-          label: "Diteruskan (cetak/cutting)",
+          // Satu kartu untuk semua langkah produksi: setelah desain lepas,
+          // designer tidak peduli order itu masuk cetak, cutting, atau sublim —
+          // yang penting sudah tidak di mejanya.
+          status: [
+            STATUS.ANTRI_CETAK,
+            STATUS.ANTRI_CUTTING,
+            STATUS.ANTRI_SUBLIM,
+          ],
+          label: "Diteruskan ke produksi",
           sub: "Sudah lepas dari desain",
           icon: Send,
           tone: "brand",

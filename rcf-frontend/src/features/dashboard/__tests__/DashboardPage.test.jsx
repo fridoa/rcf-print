@@ -22,6 +22,7 @@ vi.mock("@/features/auth/api/auth.api", () => ({
 vi.mock("@/features/orders/api/order.api", () => ({
   orderApi: {
     statistik: vi.fn(),
+    tertahan: vi.fn(),
     list: vi.fn(),
     detail: vi.fn(),
     riwayat: vi.fn(),
@@ -40,6 +41,7 @@ const STATISTIK = {
     ANTRI_DESAIN: { count: 4, qty: 40 },
     ANTRI_CETAK: { count: 2, qty: 20 },
     ANTRI_CUTTING: { count: 1, qty: 10 },
+    ANTRI_SUBLIM: { count: 2, qty: 15 },
     PACKING: { count: 3, qty: 30 },
     READY: { count: 5, qty: 50 },
     SELESAI: { count: 9, qty: 90 },
@@ -48,6 +50,14 @@ const STATISTIK = {
   aktifTotal: 15,
   overdue: 2,
   hariIni: { orderBaru: 6, selesai: 3, pendapatan: 450000 },
+};
+
+/** Panel order tertahan: kondisi bersih, supaya test dashboard tidak terganggu. */
+const TERTAHAN_AMAN = {
+  ambang_hari: 3,
+  total: 0,
+  per_status: {},
+  items: [],
 };
 
 async function renderAs(role) {
@@ -61,6 +71,7 @@ async function renderAs(role) {
     isActive: true,
   });
   orderApi.statistik.mockResolvedValue(STATISTIK);
+  orderApi.tertahan.mockResolvedValue(TERTAHAN_AMAN);
 
   return renderWithProviders(<DashboardPage />, { routes: ["/"] });
 }
@@ -90,6 +101,18 @@ describe("DashboardPage per role", () => {
     expect(screen.getAllByText("Antri Desain").length).toBeGreaterThan(0);
     // Tidak menampilkan kartu pendapatan admin.
     expect(screen.queryByText("Pendapatan hari ini")).not.toBeInTheDocument();
+  });
+
+  it("PRODUKSI melihat ketiga antrian produksi (cetak, cutting, sublim)", async () => {
+    await renderAs(ROLES.PRODUKSI);
+
+    expect(
+      await screen.findByText("Ringkasan produksi hari ini.")
+    ).toBeInTheDocument();
+    // Label tampil di StatTile DAN legenda donut — keduanya sah.
+    expect(screen.getAllByText("Antri Cetak").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Antri Cutting").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Antri Sublim").length).toBeGreaterThan(0);
   });
 
   it("PACKING melihat kartu packing + siap diambil", async () => {

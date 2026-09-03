@@ -9,7 +9,8 @@ import {
 /**
  * Order RCF Print.
  *
- * Satu order = satu jenis sablon (DTF atau POLYFLEX), sesuai ERD Revisi v2.
+ * Satu order = satu jenis sablon (DTF, POLYFLEX, atau SUBLIM), sesuai ERD
+ * Revisi v2.
  * Order campuran diinput sebagai dua order terpisah dengan dua nomor.
  *
  * Field disimpan dengan nama sesuai ERD (kode_order, jenis, customer_id, ...)
@@ -107,6 +108,18 @@ const orderSchema = new Schema(
       type: Date,
       default: null,
     },
+    // Kapan order masuk status yang sekarang. Dipakai untuk mendeteksi order
+    // yang tertahan ("kesalip antrian" / "belum diambil").
+    //
+    // Tidak memakai updatedAt karena field itu ikut berubah saat admin cuma
+    // mengedit catatan atau deadline — order yang macet 5 hari akan terlihat
+    // baru tersentuh. Tidak memakai tgl_order karena order lama yang baru saja
+    // maju ke langkah berikutnya bukan order yang tertahan; yang relevan adalah
+    // umur di langkah SEKARANG.
+    status_sejak: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );
@@ -116,6 +129,7 @@ orderSchema.index({ jenis: 1, status: 1 }); // daftar order aktif per layar
 orderSchema.index({ tgl_order: 1, jenis: 1 }); // rekap harian & penomoran
 orderSchema.index({ customer_id: 1 }); // riwayat pelanggan
 orderSchema.index({ status: 1, updatedAt: -1 }); // urutan antrean
+orderSchema.index({ status: 1, status_sejak: 1 }); // deteksi order tertahan
 
 orderSchema.methods.toJSON = function () {
   const obj = this.toObject();

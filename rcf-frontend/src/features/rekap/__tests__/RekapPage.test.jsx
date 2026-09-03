@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { RekapPage } from "@/features/rekap";
@@ -83,10 +83,24 @@ async function renderAdmin() {
 }
 
 describe("RekapPage", () => {
+  // Waktu dibekukan: dua test kalender di bawah mengklik tanggal Agustus 2026
+  // secara eksplisit, dan rentang default halaman ini = tanggal 1 s/d hari
+  // ini. Tanpa membekukan jam, kalender terbuka di bulan berjalan yang nyata
+  // dan sel Agustus 2026 tidak ada di DOM — test lulus/gagal tergantung
+  // kapan dijalankan. shouldAdvanceTime dipakai supaya delay internal
+  // userEvent tetap jalan di atas fake timer.
+  const HARI_INI = new Date(2026, 7, 28, 9, 0, 0); // 28 Agustus 2026, lokal
+
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(HARI_INI);
     localStorage.clear();
     vi.resetAllMocks();
     rekapApi.harian.mockResolvedValue(HASIL);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("menampilkan baris harian + baris TOTAL dengan format rupiah", async () => {
@@ -149,7 +163,6 @@ describe("RekapPage", () => {
   it("kalender range tidak bisa menghasilkan rentang terbalik", async () => {
     await renderAdmin();
     await waitFor(() => expect(rekapApi.harian).toHaveBeenCalled());
-    const jumlahAwal = rekapApi.harian.mock.calls.length;
 
     // Apapun urutan klik, from selalu <= to (smart range menggeser ujung
     // terdekat, tidak pernah menghasilkan from > to).

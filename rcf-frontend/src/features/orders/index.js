@@ -6,6 +6,7 @@ export { PesananPage } from "./pages/PesananPage";
 export { DesainPage } from "./pages/DesainPage";
 export { CetakPage } from "./pages/CetakPage";
 export { PolyflexPage } from "./pages/PolyflexPage";
+export { SublimPage } from "./pages/SublimPage";
 export { PackingPage } from "./pages/PackingPage";
 
 export { OrderTable } from "./components/OrderTable";
@@ -23,6 +24,7 @@ export {
   useOrder,
   useOrderRiwayat,
   useOrderStatistik,
+  useOrderTertahan,
   orderKeys,
 } from "./hooks/useOrders";
 export {

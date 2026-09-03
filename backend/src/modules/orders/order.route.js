@@ -12,14 +12,16 @@ router.use(authenticate);
 /**
  * Baca: semua role boleh.
  *
- * Tiap layar produksi (DESIGN, CETAK, POLYFLEX, PACKING) perlu melihat daftar
- * order sesuai statusnya, jadi membaca tidak dibatasi ke ADMIN. Yang dibatasi
- * adalah aksi yang mengubah data.
+ * Tiap layar produksi (DESIGN, CETAK, POLYFLEX, SUBLIM, PACKING) perlu melihat
+ * daftar order sesuai statusnya, jadi membaca tidak dibatasi ke ADMIN. Yang
+ * dibatasi adalah aksi yang mengubah data.
  */
 router.get("/", orderController.list);
 // PENTING: /statistik harus sebelum /:id, kalau tidak "statistik" tertangkap
 // sebagai parameter id dan diperlakukan sebagai ObjectId (error/404).
 router.get("/statistik", orderController.statistik);
+// Sama seperti /statistik: harus mendahului /:id.
+router.get("/tertahan", orderController.tertahan);
 router.get("/:id", orderController.detail);
 router.get("/:id/riwayat", orderController.riwayat);
 

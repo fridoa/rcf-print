@@ -146,7 +146,7 @@ describe("Customer API", () => {
       expect(res.body.data).toHaveLength(3);
       expect(res.body.pagination).toMatchObject({
         page: 1,
-        limit: 20,
+        limit: 10,
         total: 3,
         totalPages: 1,
       });

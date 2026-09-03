@@ -3,7 +3,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider } from "@/features/auth";
-import { createQueryClient } from "./queryClient";
+import { queryClient } from "./queryClient";
 
 /**
  * Urutan provider penting:
@@ -11,14 +11,14 @@ import { createQueryClient } from "./queryClient";
  *   Query   -> AuthProvider memakai useMutation/useQuery di bawahnya
  *   Auth    -> paling dalam, butuh keduanya
  *
- * queryClient dibuat sekali di luar komponen supaya cache tidak
- * ter-reset setiap kali Providers re-render.
+ * queryClient dibuat sekali di queryClient.js (singleton) supaya cache tidak
+ * ter-reset setiap kali Providers re-render, dan supaya modul lain (mis.
+ * AuthProvider) bisa mengimpor instance yang sama tanpa circular import.
  *
  * ToastContainer dipasang sekali di sini (global) supaya notify.* dari mana
  * pun langsung tampil. Posisi kanan-atas, autoClose 3.5 dtk, dan newestOnTop
  * supaya notifikasi terbaru tidak tertutup yang lama.
  */
-const queryClient = createQueryClient();
 
 export function Providers({ children }) {
   return (

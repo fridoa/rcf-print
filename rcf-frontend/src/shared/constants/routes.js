@@ -13,6 +13,7 @@ export const ROUTES = {
   desain: "/desain", // DESIGNER: antrian desain
   cetak: "/cetak", // PRODUKSI (DTF): antrian cetak
   polyflex: "/polyflex", // PRODUKSI (Polyflex): antrian cutting
+  sublim: "/sublim", // PRODUKSI (Sublim): antrian sublim
   packing: "/packing", // PACKING: antrian packing + tandai siap
   rekap: "/rekap",
 };

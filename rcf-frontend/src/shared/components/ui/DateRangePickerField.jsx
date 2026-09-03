@@ -45,6 +45,10 @@ export function DateRangePickerField({
   sampai,
   onChange,
   label = "Rentang tanggal",
+  // Sisi mana popover disejajarkan. Field yang duduk di tepi kanan baris
+  // filter perlu "right", kalau tidak kalendernya (jauh lebih lebar dari
+  // tombolnya) menjorok keluar layar.
+  align = "left",
   className,
 }) {
   const [buka, setBuka] = useState(false);
@@ -95,7 +99,7 @@ export function DateRangePickerField({
       ? `${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`
       : dari
         ? `${tanggalPendek(dari)} – …`
-        : "Pilih rentang tanggal";
+        : "Pilih tanggal";
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
@@ -112,7 +116,11 @@ export function DateRangePickerField({
           aria-labelledby={`${label}-label`}
           onClick={() => setBuka((v) => !v)}
           className={cn(
-            "flex w-full min-w-56 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm shadow-sm",
+            // Lebar diserahkan ke container (w-full) — tanpa min-width sendiri,
+            // supaya field ini bisa dipakai baik sebagai kolom lebar (Rekap)
+            // maupun kontrol ringkas di baris filter (Pesanan). min-w-0 wajib
+            // agar bisa menyusut di dalam flex tanpa mendorong tetangganya.
+            "flex h-[38px] w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm shadow-sm",
             "border-slate-300 bg-white text-slate-800 hover:border-slate-400",
             "focus:outline focus:outline-2 focus:outline-brand-500"
           )}
@@ -131,9 +139,23 @@ export function DateRangePickerField({
           <div
             role="dialog"
             aria-label={label}
-            className="absolute left-0 z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+            className={cn(
+              "absolute z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg",
+              align === "right" ? "right-0" : "left-0"
+            )}
           >
-            <Calendar mode="range" selected={selected} onSelect={pilih} numberOfMonths={1} />
+            {/* Kalender dibuka pada bulan rentang yang sedang aktif, bukan
+                bulan hari ini: kalau admin sedang melihat rentang Juni lalu
+                membuka kalender, yang muncul harus Juni — kalau tidak, dia
+                harus menavigasi mundur setiap kali hanya untuk melihat
+                pilihannya sendiri. Fallback ke hari ini saat rentang kosong. */}
+            <Calendar
+              mode="range"
+              selected={selected}
+              onSelect={pilih}
+              numberOfMonths={1}
+              defaultMonth={selected?.from ?? selected?.to ?? undefined}
+            />
 
             <div className="flex items-center justify-between border-t border-slate-100 px-2 pb-1 pt-2">
               <button

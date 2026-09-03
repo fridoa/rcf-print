@@ -1,6 +1,7 @@
 import * as yup from "yup";
 import {
   JENIS_LIST,
+  JENIS_LABEL,
   METODE_BAYAR_LIST,
   STATUS_LIST,
 } from "../constants/order.constants";
@@ -13,6 +14,14 @@ import {
  * "" ditransform ke undefined supaya tidak gagal typeError saat kosong.
  */
 const kosongJadiUndefined = (v, original) => (original === "" ? undefined : v);
+
+/**
+ * Pesan error jenis dirakit dari daftar jenis, bukan ditulis manual, supaya
+ * menambah jenis baru (mis. Sublim) tidak menyisakan pesan lama yang bohong.
+ */
+const PESAN_JENIS = `Jenis harus salah satu dari: ${JENIS_LIST.map(
+  (j) => JENIS_LABEL[j] ?? j
+).join(", ")}`;
 
 /**
  * POST /orders — buat order.
@@ -32,7 +41,7 @@ export const createOrderSchema = yup.object({
   customer_id: yup.string().trim().required("Pelanggan wajib dipilih"),
   jenis: yup
     .string()
-    .oneOf(JENIS_LIST, "Jenis harus DTF atau Polyflex")
+    .oneOf(JENIS_LIST, PESAN_JENIS)
     .required("Jenis sablon wajib dipilih"),
   deadline: yup
     .date()

@@ -107,6 +107,10 @@ export function RekapPage() {
 
       <div className="flex flex-wrap items-end gap-3">
         <DateRangePickerField
+          // Lebar eksplisit: field ini sendiri sudah tidak punya min-width
+          // (dipakai juga sebagai kontrol ringkas di halaman Pesanan), dan di
+          // dalam flex-wrap tanpa basis ia akan menyusut ke selebar teks.
+          className="w-64"
           dari={range.dari}
           sampai={range.sampai}
           onChange={(r) => {

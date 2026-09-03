@@ -98,7 +98,7 @@ describe("GET /orders/statistik", () => {
     expect(d.hariIni.pendapatan).toBe(150000);
   });
 
-  it("perStatusJenis memisah antrian per jenis (DTF vs POLYFLEX)", async () => {
+  it("perStatusJenis memisah antrian per jenis (DTF vs POLYFLEX vs SUBLIM)", async () => {
     await buatOrder({
       customer_id: customer._id,
       created_by: adminUser._id,
@@ -113,6 +113,13 @@ describe("GET /orders/statistik", () => {
       status: STATUS.ANTRI_CUTTING,
       total_qty: 6,
     });
+    await buatOrder({
+      customer_id: customer._id,
+      created_by: adminUser._id,
+      jenis: "SUBLIM",
+      status: STATUS.ANTRI_SUBLIM,
+      total_qty: 5,
+    });
 
     const res = await request(app)
       .get(URL)
@@ -122,5 +129,6 @@ describe("GET /orders/statistik", () => {
     const d = res.body.data;
     expect(d.perStatusJenis.ANTRI_CETAK.DTF).toBe(1);
     expect(d.perStatusJenis.ANTRI_CUTTING.POLYFLEX).toBe(1);
+    expect(d.perStatusJenis.ANTRI_SUBLIM.SUBLIM).toBe(1);
   });
 });

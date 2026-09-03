@@ -1,7 +1,8 @@
-import { Button, TableSkeleton } from "@/shared/components/ui";
+import { TableSkeleton } from "@/shared/components/ui";
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery";
 import { formatWhatsapp, whatsappLink } from "@/shared/lib/phone";
 import { formatRupiah, formatTanggal } from "@/shared/lib/format";
+import { kelompokkanPerTanggal } from "@/shared/lib/date-range";
 import { JENIS_LABEL } from "../constants/order.constants";
 import { StatusBadge } from "./StatusBadge";
 
@@ -13,6 +14,9 @@ import { StatusBadge } from "./StatusBadge";
  * - renderAction(order): fungsi yang mengembalikan tombol aksi untuk baris
  *   itu (mis. "Selesai Desain", "Selesai Cetak"). Kembalikan null untuk tak
  *   ada aksi. Ini membuat tabel tak perlu tahu soal role/status/mutation.
+ * - groupByTanggal: sisipkan baris pemisah per tgl_order ("Hari Ini",
+ *   "Kemarin", "Sen, 25 Agu 2026"). Opt-in supaya layar produksi yang
+ *   mengurutkan antrean per status tidak berubah perilakunya.
  *
  * emptyText bisa disetel per layar ("Tidak ada antrian desain", dst).
  */
@@ -35,8 +39,14 @@ export function OrderTable({
   isLoading = false,
   isFetching = false,
   emptyText = "Belum ada order yang cocok.",
+  groupByTanggal = false,
   renderAction,
 }) {
+  // Hook harus dipanggil sebelum early return apa pun (rules-of-hooks):
+  // skeleton loading di bawah adalah early return, jadi useIsDesktop tidak
+  // boleh menunggu setelahnya — urutan hook wajib sama tiap render.
+  const isDesktop = useIsDesktop();
+
   if (isLoading) {
     return (
       <TableSkeleton
@@ -50,7 +60,12 @@ export function OrderTable({
   const adaAksi = typeof renderAction === "function";
   const kosong = orders.length === 0;
   const jumlahKolom = columns.length + (adaAksi ? 1 : 0);
-  const isDesktop = useIsDesktop();
+
+  // Satu bentuk data untuk kedua tampilan: tanpa grouping = satu grup tanpa
+  // label, jadi kode render di bawah tidak perlu bercabang dua kali.
+  const grup = groupByTanggal
+    ? kelompokkanPerTanggal(orders)
+    : [{ kunci: "semua", label: null, orders }];
 
   // Pilih SATU tampilan (bukan render dua-duanya lalu sembunyikan dengan CSS):
   // menjaga DOM tetap tunggal — lebih hemat, aksesibilitas bersih, dan tidak
@@ -97,28 +112,53 @@ export function OrderTable({
                 </td>
               </tr>
             ) : (
-              orders.map((order) => (
-                <tr key={order._id} className="hover:bg-slate-50">
-                  {columns.map((key) => (
-                    <td
-                      key={key}
-                      className={`px-4 py-3 ${
-                        SEMUA_KOLOM[key]?.align === "right" ? "text-right" : ""
-                      }`}
-                    >
-                      <OrderCell order={order} kolom={key} />
-                    </td>
-                  ))}
+              grup.flatMap((g) => [
+                // Baris pemisah tanggal: satu baris penuh selebar tabel dengan
+                // teks "Order Hari Ini" / "Order Kemarin" / "Order Sen, 25 Agu
+                // 2026". scope="colgroup" dipakai (bukan role="presentation")
+                // karena ini memang konteks yang perlu terbaca screen reader
+                // sebelum baris-baris di bawahnya.
+                ...(g.label
+                  ? [
+                      <tr key={`grup-${g.kunci}`} className="bg-slate-100">
+                        <th
+                          scope="colgroup"
+                          colSpan={jumlahKolom}
+                          className="px-4 py-2.5 text-left text-sm font-semibold text-slate-700"
+                        >
+                          Order {g.label}
+                          <span className="ml-2 text-xs font-normal text-slate-500">
+                            {g.orders.length} order
+                          </span>
+                        </th>
+                      </tr>,
+                    ]
+                  : []),
+                ...g.orders.map((order) => (
+                  <tr key={order._id} className="hover:bg-slate-50">
+                    {columns.map((key) => (
+                      <td
+                        key={key}
+                        className={`px-4 py-3 ${
+                          SEMUA_KOLOM[key]?.align === "right"
+                            ? "text-right"
+                            : ""
+                        }`}
+                      >
+                        <OrderCell order={order} kolom={key} />
+                      </td>
+                    ))}
 
-                  {adaAksi && (
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
-                        {renderAction(order)}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))
+                    {adaAksi && (
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          {renderAction(order)}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )),
+              ])
             )}
           </tbody>
         </table>
@@ -136,56 +176,76 @@ export function OrderTable({
   }
 
   return (
-    <ul className="space-y-3" aria-busy={isFetching || undefined}>
-      {orders.map((order) => (
-        <li
-          key={order._id}
-          className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <OrderCell order={order} kolom="kode" />
-              <p className="mt-0.5 text-xs text-slate-500">
-                {JENIS_LABEL[order.jenis] ?? order.jenis}
-              </p>
-            </div>
-            <StatusBadge status={order.status} />
-          </div>
-
-          {columns.includes("pelanggan") && (
-            <div className="mt-3 text-sm">
-              <OrderCell order={order} kolom="pelanggan" />
-            </div>
+    <div className="space-y-4" aria-busy={isFetching || undefined}>
+      {grup.map((g) => (
+        <section key={g.kunci} className="space-y-3">
+          {g.label && (
+            <h3 className="flex items-baseline gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
+              Order {g.label}
+              <span className="text-xs font-normal text-slate-500">
+                {g.orders.length} order
+              </span>
+            </h3>
           )}
 
-          {/* Ringkasan field angka/tanggal sebagai pasangan label-nilai. */}
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            {columns
-              .filter((key) =>
-                ["qty", "file", "harga", "metode", "deadline", "tanggal"].includes(
-                  key
-                )
-              )
-              .map((key) => (
-                <div key={key} className="flex flex-col">
-                  <dt className="text-xs uppercase text-slate-400">
-                    {SEMUA_KOLOM[key]?.header ?? key}
-                  </dt>
-                  <dd className="text-slate-700">
-                    <OrderCell order={order} kolom={key} />
-                  </dd>
+          <ul className="space-y-3">
+            {g.orders.map((order) => (
+              <li
+                key={order._id}
+                className="rounded-lg bg-white p-4 ring-1 ring-slate-200"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <OrderCell order={order} kolom="kode" />
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {JENIS_LABEL[order.jenis] ?? order.jenis}
+                    </p>
+                  </div>
+                  <StatusBadge status={order.status} />
                 </div>
-              ))}
-          </dl>
 
-          {adaAksi && (
-            <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-              {renderAction(order)}
-            </div>
-          )}
-        </li>
+                {columns.includes("pelanggan") && (
+                  <div className="mt-3 text-sm">
+                    <OrderCell order={order} kolom="pelanggan" />
+                  </div>
+                )}
+
+                {/* Ringkasan field angka/tanggal sebagai pasangan label-nilai. */}
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {columns
+                    .filter((key) =>
+                      [
+                        "qty",
+                        "file",
+                        "harga",
+                        "metode",
+                        "deadline",
+                        "tanggal",
+                      ].includes(key)
+                    )
+                    .map((key) => (
+                      <div key={key} className="flex flex-col">
+                        <dt className="text-xs uppercase text-slate-400">
+                          {SEMUA_KOLOM[key]?.header ?? key}
+                        </dt>
+                        <dd className="text-slate-700">
+                          <OrderCell order={order} kolom={key} />
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+
+                {adaAksi && (
+                  <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+                    {renderAction(order)}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
 

@@ -1,13 +1,14 @@
 {
   "name": "rcf-print-backend",
   "version": "1.0.0",
-  "description": "Backend sistem pengelolaan order RCF Print (DTF & Polyflex)",
+  "description": "Backend sistem pengelolaan order RCF Print (DTF, Polyflex & Sublim)",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon -L server.js",
     "start": "node server.js",
     "seed:admin": "node scripts/seed-admin.js",
+    "backfill:status-sejak": "node scripts/backfill-status-sejak.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

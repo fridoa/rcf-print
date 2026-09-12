@@ -71,8 +71,7 @@ export const selesaiDesainSchema = yup.object({
     .number()
     .transform(kosongJadiUndefined)
     .typeError("Total qty harus angka")
-    .integer("Total qty harus bilangan bulat")
-    .min(1, "Total qty minimal 1")
+    .positive("Total qty harus lebih besar dari 0")
     .required("Total qty wajib diisi"),
   catatan: yup.string().trim().max(300, "Catatan maksimal 300 karakter"),
 });

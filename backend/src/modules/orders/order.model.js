@@ -62,7 +62,10 @@ const orderSchema = new Schema(
     total_qty: {
       type: Number,
       default: null,
-      min: [1, "total_qty minimal 1"],
+      validate: {
+        validator: (v) => v === null || v > 0,
+        message: "total_qty harus lebih besar dari 0",
+      },
     },
     deadline: {
       type: Date,

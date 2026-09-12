@@ -264,6 +264,18 @@ describe("Order API", () => {
       expect(res.status).toBe(400);
     });
 
+    it("menerima desimal untuk total_qty dari designer", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.DTF });
+
+      const res = await sebagai(tokenDesigner).patch(`/${order._id}/status`, {
+        file_count: 2,
+        total_qty: 1.5,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total_qty).toBe(1.5);
+    });
+
     it("transisi produksi tidak mengubah angka yang sudah ditetapkan designer", async () => {
       const order = await buatOrderApi({ jenis: JENIS.DTF });
       await sebagai(tokenDesigner).patch(`/${order._id}/status`, DESAIN);
@@ -951,6 +963,17 @@ describe("Order API", () => {
       expect(res.status).toBe(200);
       expect(res.body.data.total_qty).toBe(25);
       expect(res.body.data.catatan).toBe("Catatan direvisi");
+    });
+
+    it("ADMIN bisa mengubah total_qty menjadi bilangan desimal", async () => {
+      const order = await buatOrderApi({ jenis: JENIS.DTF });
+
+      const res = await sebagai(tokenAdmin).patch(`/${order._id}`, {
+        total_qty: 3.75,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total_qty).toBe(3.75);
     });
 
     it("menolak role non-admin untuk update dengan 403", async () => {

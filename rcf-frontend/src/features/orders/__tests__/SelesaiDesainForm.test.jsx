@@ -25,12 +25,30 @@ describe("SelesaiDesainForm", () => {
       "pakai kertas transfer B"
     );
     await userEvent.click(screen.getByRole("button", { name: /selesai desain/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /ya, selesaikan/i }));
 
     await waitFor(() =>
       expect(onSubmit.mock.calls[0][0]).toMatchObject({
         file_count: 2,
         total_qty: 24,
         catatan: "pakai kertas transfer B",
+      })
+    );
+  });
+
+  it("menerima desimal untuk total qty", async () => {
+    const onSubmit = vi.fn();
+    renderForm({ order: ORDER, onSubmit });
+
+    await userEvent.type(screen.getByLabelText(/jumlah file/i), "2");
+    await userEvent.type(screen.getByLabelText(/total qty/i), "1.5");
+    await userEvent.click(screen.getByRole("button", { name: /selesai desain/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /ya, selesaikan/i }));
+
+    await waitFor(() =>
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({
+        file_count: 2,
+        total_qty: 1.5,
       })
     );
   });
@@ -42,6 +60,7 @@ describe("SelesaiDesainForm", () => {
     await userEvent.type(screen.getByLabelText(/jumlah file/i), "1");
     await userEvent.type(screen.getByLabelText(/total qty/i), "10");
     await userEvent.click(screen.getByRole("button", { name: /selesai desain/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /ya, selesaikan/i }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
   });
@@ -66,6 +85,7 @@ describe("SelesaiDesainForm", () => {
     await userEvent.click(screen.getByRole("button", { name: /selesai desain/i }));
 
     expect(await screen.findByText(/jumlah file minimal 1/i)).toBeInTheDocument();
+    expect(await screen.findByText(/total qty harus lebih besar dari 0/i)).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

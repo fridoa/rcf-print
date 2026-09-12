@@ -84,8 +84,7 @@ export const updateOrderSchema = Yup.object({
     .min(1, "Jumlah file minimal 1"),
   total_qty: Yup.number()
     .transform(kosongJadiUndefined)
-    .integer("total_qty harus bilangan bulat")
-    .min(1, "total_qty minimal 1"),
+    .positive("total_qty harus lebih besar dari 0"),
   deadline: Yup.date()
     .transform(kosongJadiUndefined)
     .typeError("deadline harus tanggal yang valid")
@@ -118,8 +117,7 @@ export const majukanStatusSchema = Yup.object({
     .min(1, "Jumlah file minimal 1"),
   total_qty: Yup.number()
     .transform(kosongJadiUndefined)
-    .integer("total_qty harus bilangan bulat")
-    .min(1, "total_qty minimal 1"),
+    .positive("total_qty harus lebih besar dari 0"),
   catatan: Yup.string().trim().max(300, "Catatan maksimal 300 karakter"),
 });
 

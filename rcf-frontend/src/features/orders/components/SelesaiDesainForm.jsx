@@ -90,9 +90,10 @@ export function SelesaiDesainForm({
               {...field}
               label="Total Qty"
               type="number"
-              min="1"
-              inputMode="numeric"
-              placeholder="24"
+              step="any"
+              min="0"
+              inputMode="decimal"
+              placeholder="24 atau 1.5"
               hint="Total potong/pcs untuk order ini."
               error={fieldState.error?.message}
             />

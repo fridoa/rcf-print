@@ -79,7 +79,7 @@ const rekapHarian = async ({ dari, sampai } = {}) => {
         tanggal: "$_id",
         pelanggan: { $size: "$pelangganSet" },
         file: 1,
-        qty: 1,
+        qty: { $round: ["$qty", 2] },
         cash: 1,
         transfer: 1,
         jumlahOrder: 1,
@@ -97,7 +97,7 @@ const rekapHarian = async ({ dari, sampai } = {}) => {
   const total = baris.reduce(
     (acc, b) => ({
       file: acc.file + b.file,
-      qty: acc.qty + b.qty,
+      qty: Math.round((acc.qty + b.qty) * 100) / 100,
       cash: acc.cash + b.cash,
       transfer: acc.transfer + b.transfer,
       jumlahOrder: acc.jumlahOrder + b.jumlahOrder,

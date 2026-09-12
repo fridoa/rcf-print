@@ -478,7 +478,10 @@ const statistik = async () => {
   }
   for (const row of perStatusAgg) {
     if (perStatus[row._id]) {
-      perStatus[row._id] = { count: row.count, qty: row.qty };
+      perStatus[row._id] = {
+        count: row.count,
+        qty: Math.round(row.qty * 100) / 100,
+      };
     }
   }
 
